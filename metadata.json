@@ -1,0 +1,5 @@
+{
+  "name": "Kirana Store - Fresh Groceries",
+  "description": "A modern, responsive e-commerce web application for a Kirana (grocery) store, built with React and Tailwind CSS. This frontend-only application simulates a full-featured online shopping experience with mock data.",
+  "requestFramePermissions": []
+}
