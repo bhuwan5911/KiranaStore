@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from "../context/AppContext";
 import { Order } from '../../types';
 
 export const AdminOrdersPage: React.FC = () => {

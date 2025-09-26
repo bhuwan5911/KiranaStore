@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from "../context/AppContext";
 import { Product } from '../../types';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { categories } from '../../data/mockData';
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { categories } from "../data/mockData";
 import { Plus, Edit, Trash2 } from 'lucide-react';
 
 export const AdminProductsPage: React.FC = () => {

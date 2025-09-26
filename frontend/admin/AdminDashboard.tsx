@@ -1,7 +1,7 @@
 import React from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { StatCard } from '../../components/admin/StatCard';
-import { SalesChart } from '../../components/admin/SalesChart';
+import { useAppContext } from '../context/AppContext';
+import { StatCard } from '../components/admin/StatCard';
+import { SalesChart } from '../components/admin/SalesChart';
 import { DollarSign, Package, ShoppingBag, Users } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {

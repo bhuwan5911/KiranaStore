@@ -1,5 +1,3 @@
-
-
 import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Header } from './components/Header';
@@ -23,13 +21,12 @@ import { AlertTriangle } from 'lucide-react';
 import { OfflineModal } from './components/ui/OfflineModal';
 
 // Admin Imports
-import { AdminLayout } from './admin/components/AdminLayout';
-import { AdminDashboard } from './admin/pages/AdminDashboard';
-import { AdminProductsPage } from './admin/pages/AdminProductsPage';
-import { AdminOrdersPage } from './admin/pages/AdminOrdersPage';
-import { AdminUsersPage } from './admin/pages/AdminUsersPage';
-import { ProtectedRoute } from './admin/components/ProtectedRoute';
-
+import { AdminLayout } from './admin/AdminLayout';
+import { AdminDashboard } from './admin/AdminDashboard';
+import { AdminProductsPage } from './admin/AdminProductsPage';
+import { AdminOrdersPage } from './admin/AdminOrdersPage';
+import { AdminUsersPage } from './admin/AdminUsersPage';
+import { ProtectedRoute } from './admin/ProtectedRoute';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -77,30 +74,28 @@ const MainLayout = () => {
   );
 }
 
-
 const App: React.FC = () => {
   return (
     <AppProvider>
       <HashRouter>
         <ScrollToTop />
         <Routes>
-          {/* Admin Routes */}
+          {/* Admin Routes - FIXED */}
           <Route 
             path="/admin/*"
             element={
               <ProtectedRoute>
-                <AdminLayout>
-                  <Routes>
-                    <Route path="dashboard" element={<AdminDashboard />} />
-                    <Route path="products" element={<AdminProductsPage />} />
-                    <Route path="orders" element={<AdminOrdersPage />} />
-                    <Route path="users" element={<AdminUsersPage />} />
-                    <Route index element={<Navigate to="dashboard" />} />
-                  </Routes>
-                </AdminLayout>
+                <AdminLayout />
               </ProtectedRoute>
             } 
-          />
+          >
+            {/* Nested routes inside AdminLayout */}
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="products" element={<AdminProductsPage />} />
+            <Route path="orders" element={<AdminOrdersPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route index element={<Navigate to="dashboard" />} />
+          </Route>
           
           {/* Public Routes */}
           <Route path="/*" element={<MainLayout />} />

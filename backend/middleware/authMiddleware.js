@@ -1,5 +1,8 @@
+// backend/middleware/authMiddleware.js
+
 import jwt from 'jsonwebtoken';
-import { connectToDb } from '../db.js';
+// BADLAV: Sirf 'getDb' ko import karein
+import { getDb } from '../db.js';
 import { ObjectId } from 'mongodb';
 
 const protect = async (req, res, next) => {
@@ -7,21 +10,17 @@ const protect = async (req, res, next) => {
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
-            // Get token from header
             token = req.headers.authorization.split(' ')[1];
-
-            // Verify token
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-            // Get user from the token
-            const db = await connectToDb();
+            
+            // BADLAV: connectToDb() ki jagah getDb() use karein
+            const db = getDb();
+            
             req.user = await db.collection('users').findOne({ _id: new ObjectId(decoded.id) }, { projection: { password: 0 } });
             
             if (!req.user) {
-                return res.status(401).json({ message: 'Not authorized, user not found' });
+               return res.status(401).json({ message: 'Not authorized, user not found' });
             }
-
-            req.user.id = req.user._id.toString(); // Add string id for convenience
 
             next();
         } catch (error) {

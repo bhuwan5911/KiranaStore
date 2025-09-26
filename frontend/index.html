@@ -1,143 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-g" />
+    <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shophub - Fresh Groceries</title>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Poppins', 'sans-serif'],
-            },
-            colors: {
-              primary: {
-                DEFAULT: '#FFA500', // Orange
-                dark: '#E59400',
-              },
-              secondary: {
-                DEFAULT: '#FFC107', // Yellow
-              },
-              accent: {
-                DEFAULT: '#4ECCA3', // A contrasting mint green
-              },
-              neutral: {
-                lightest: '#FDF5E6', // Warm Beige Background
-                light: '#FFFFFF',
-                DEFAULT: '#F7F8FA',
-                dark: '#E9ECEF',
-              },
-              text: {
-                primary: '#1A202C',
-                secondary: '#4A5568',
-              },
-              brand: {
-                yellow: '#FFD166',
-                orange: '#FF9F43',
-                black: '#2D3436'
-              },
-            },
-            borderRadius: {
-              'xl': '1rem',
-              '2xl': '1.5rem',
-              '3xl': '2rem',
-              '4xl': '3rem',
-            },
-            boxShadow: {
-              'soft': '0 10px 30px rgba(0, 0, 0, 0.05)',
-              'soft-lg': '0 15px 40px rgba(0, 0, 0, 0.08)',
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-      @keyframes slide-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-      @keyframes subtle-glow {
-        0%, 100% { box-shadow: 0 0 40px 20px rgba(255, 165, 0, 0.2); }
-        50% { box-shadow: 0 0 50px 30px rgba(255, 165, 0, 0.3); }
-      }
-      /* ---- NEW ANIMATIONS FOR UI POLISH ---- */
-      @keyframes pop-in {
-        0% { transform: scale(0.5); opacity: 0; }
-        70% { transform: scale(1.1); opacity: 1; }
-        100% { transform: scale(1); }
-      }
-      @keyframes shake {
-        10%, 90% { transform: translate3d(-1px, 0, 0); }
-        20%, 80% { transform: translate3d(2px, 0, 0); }
-        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-        40%, 60% { transform: translate3d(4px, 0, 0); }
-      }
-      @keyframes highlight-bg {
-          from { background-color: rgba(255, 193, 7, 0.4); transform: scale(1.05); }
-          to { background-color: transparent; transform: scale(1); }
-      }
-      @keyframes gentle-float-1 {
-        0% { transform: translateY(0px) rotate(-12deg); }
-        50% { transform: translateY(-10px) rotate(-10deg); }
-        100% { transform: translateY(0px) rotate(-12deg); }
-      }
-      @keyframes gentle-float-2 {
-        0% { transform: translateY(0px) rotate(12deg); }
-        50% { transform: translateY(-10px) rotate(14deg); }
-        100% { transform: translateY(0px) rotate(12deg); }
-      }
-      /* ---- END NEW ANIMATIONS ---- */
-
-      body {
-        font-family: 'Poppins', sans-serif;
-        background-color: #FDF5E6; /* Warm Beige Background */
-      }
-
-      .glass-card {
-        background: rgba(255, 255, 255, 0.6);
-        -webkit-backdrop-filter: blur(20px);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
-      }
-      
-      .image-glow {
-        animation: subtle-glow 8s ease-in-out infinite;
-      }
-
-      .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-      .animate-slide-in-up { animation: slide-in-up 0.5s ease-out forwards; }
-
-      /* ---- NEW ANIMATION CLASSES ---- */
-      .animate-pop-in { animation: pop-in 0.4s ease-out forwards; }
-      .animate-shake { animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both; }
-      .animate-highlight { animation: highlight-bg 0.8s ease-out; }
-      .animate-gentle-float-1 { animation: gentle-float-1 6s ease-in-out infinite; }
-      .animate-gentle-float-2 { animation: gentle-float-2 7s ease-in-out infinite; }
-      /* ---- END NEW CLASSES ---- */
-
-      .animation-delay-200 { animation-delay: 0.2s; }
-      .animation-delay-400 { animation-delay: 0.4s; }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.8.2",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.542.0"
-  }
-}
-</script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/frontend/index.tsx"></script>
+   <script type="module" src="/index.tsx"></script>
+
   </body>
 </html>

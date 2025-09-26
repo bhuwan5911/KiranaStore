@@ -1,26 +1,43 @@
+// backend/db.js
+
 import { MongoClient } from 'mongodb';
-import 'dotenv/config';
 
-const mongoUri = process.env.MONGO_URI;
-if (!mongoUri) {
-    throw new Error('MONGO_URI is not defined in the .env file. Please create a backend/.env file.');
-}
+// --- BADLAV START ---
+// Ek variable banayein jo database instance ko store karega
+let dbInstance;
+// --- BADLAV END ---
 
-let db;
-
-async function connectToDb() {
-    if (db) return db;
-
+const connectToDb = async () => {
+    // Agar pehle se connected hai, to dobara connect na karein
+    if (dbInstance) {
+        return;
+    }
     try {
-        const client = new MongoClient(mongoUri);
+        const client = new MongoClient(process.env.MONGO_URI);
         await client.connect();
+        
+        // --- BADLAV START ---
+        // Connection ko dbInstance variable mein store karein
+        // Note: 'kirana-store' ko apne database ke naam se badlein agar alag hai
+        dbInstance = client.db('kirana-store'); 
+        // --- BADLAV END ---
+        
         console.log('Connected successfully to MongoDB Atlas');
-        db = client.db('kirana-store'); // You can name your database here
-        return db;
-    } catch (e) {
-        console.error("Could not connect to MongoDB Atlas", e);
+    } catch (error) {
+        console.error('Could not connect to MongoDB Atlas', error);
         process.exit(1);
     }
-}
+};
 
-export { connectToDb };
+// --- BADLAV START ---
+// Ek naya function banayein jo store kiye gaye connection ko return karega
+const getDb = () => {
+    if (!dbInstance) {
+        throw new Error('Database not connected. Call connectToDb first.');
+    }
+    return dbInstance;
+};
+
+// Dono functions ko export karein
+export { connectToDb, getDb };
+// --- BADLAV END ---

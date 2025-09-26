@@ -52,3 +52,7 @@ export interface Review {
     comment: string;
     date: string;
 }
+export interface Category {
+  slug: string;
+  name: string;
+}

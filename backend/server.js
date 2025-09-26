@@ -22,9 +22,14 @@ app.use(cors({
 }));
 app.use(express.json());
 
+app.use((req, res, next) => {
+    console.log(`=> REQUEST RECEIVED: ${req.method} ${req.originalUrl}`);
+    next();
+});
+
 // API Routes
 app.get('/', (req, res) => {
-    res.send('Shophub Backend API is running...');
+    res.send('Kirana ki  Backend API is running...');
 });
 
 // Use routers
