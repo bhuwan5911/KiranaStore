@@ -34,22 +34,21 @@ router.get('/', async (req, res) => {
 // @route   GET /api/products/:id
 // @access  Public
 router.get('/:id', async (req, res) => {
-    const productId = Number(req.params.id);
     try {
-        // --- BADLAV START ---
         const db = getDb();
-        // --- BADLAV END ---
+        // Frontend se ID string mein aati hai, use number mein convert karein
+        const productId = Number(req.params.id);
         const product = await db.collection('products').findOne({ id: productId });
+
         if (product) {
             res.json(product);
         } else {
             res.status(404).json({ message: 'Product not found' });
         }
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching product', error: error.message });
+        res.status(500).json({ message: 'Server error while fetching product' });
     }
 });
-
 // @desc    Get reviews for a product
 // @route   GET /api/products/:id/reviews
 // @access  Public

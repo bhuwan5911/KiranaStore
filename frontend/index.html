@@ -6,13 +6,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shophub - Fresh Groceries</title>
     
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN Script -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Tailwind Configuration & CSS -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Poppins', 'sans-serif'],
+            },
+            colors: {
+              'primary': '#FFA500', // Orange
+              'brand-yellow': '#FEF3C7',
+              'brand-orange': '#FDBA74',
+              'brand-black': '#2D3436',
+              'text-primary': '#1A202C',
+              'text-secondary': '#6B7280',
+            },
+          }
+        }
+      }
+    </script>
+
+    <style type="text/tailwindcss">
+      /* Custom CSS & Animations */
+      body {
+        background-color: #FEF3C7;
+        font-family: 'Poppins', sans-serif;
+      }
+
+      .btn-shine {
+        position: relative;
+        overflow: hidden;
+        /* --- BADLAV: Naya 'pulse-and-shine' animation yahaan lagaya gaya hai --- */
+        animation: pulse-and-shine 2.5s infinite;
+      }
+
+      .btn-shine::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -200%;
+        width: 200%;
+        height: 100%;
+        transform: skewX(-25deg);
+        background-image: linear-gradient(
+          to right,
+          transparent,
+          rgba(255, 255, 255, 0.4),
+          transparent
+        );
+        animation: shine 2.5s linear infinite;
+      }
+      
+      /* --- BADLAV: Naya combined keyframe banaya gaya hai --- */
+      @keyframes pulse-and-shine {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      @keyframes shine {
+        100% {
+          left: 200%;
+        }
+      }
+    </style>
+
   </head>
   <body>
     <div id="root"></div>
-   <script type="module" src="/index.tsx"></script>
-
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

@@ -6,11 +6,12 @@ import { HeartCrack, ShoppingCart } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
 export const WishlistPage: React.FC = () => {
+  // Yeh pehle se hi AppContext use kar raha hai, isliye ismein koi badlav nahi. Bilkul sahi hai!
   const { wishlist, addWishlistToCart } = useAppContext();
 
   if (wishlist.length === 0) {
     return (
-      <div className="text-center py-16">
+      <div className="text-center py-16 animate-slide-in-up">
         <HeartCrack size={64} className="mx-auto text-gray-400 mb-4" />
         <h2 className="text-2xl font-semibold mb-2">Your wishlist is empty</h2>
         <p className="text-text-secondary mb-6">Explore products and save your favorites here.</p>
@@ -22,7 +23,7 @@ export const WishlistPage: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className="container mx-auto px-4 py-8 animate-slide-in-up">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">My Wishlist</h1>
         <Button onClick={addWishlistToCart}>
@@ -35,7 +36,6 @@ export const WishlistPage: React.FC = () => {
           <ProductCard 
             key={product.id} 
             product={product} 
-            style={{ animationDelay: `${index * 50}ms` }}
           />
         ))}
       </div>

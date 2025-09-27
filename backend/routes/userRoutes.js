@@ -104,13 +104,42 @@ router.get('/wishlist', protect, async (req, res) => {
     }
 });
 
-router.get('/orders', protect, async (req, res) => {
+router.post('/orders', protect, async (req, res) => {
+    const { cart, shippingAddress } = req.body; // Shipping address bhi lenge
     try {
         const db = getDb();
-        const orders = await db.collection('orders').find({ userId: new ObjectId(req.user._id) }).sort({ date: -1 }).toArray();
-        res.json(orders);
+        const productIds = cart.map(item => item.id);
+        const productsInDb = await db.collection('products').find({ id: { $in: productIds } }).toArray();
+
+        // Stock aur total amount dobara check karein
+        let totalAmount = 0;
+        for (const item of cart) {
+            const product = productsInDb.find(p => p.id === item.id);
+            if (!product || product.stock < item.quantity) {
+                return res.status(400).json({ message: `Item ${item.name} is out of stock.` });
+            }
+            totalAmount += product.price * item.quantity;
+        }
+
+        const newOrder = {
+            // MongoDB apne aap _id generate karega
+            userId: new ObjectId(req.user._id),
+            userName: req.user.name,
+            shippingAddress,
+            date: new Date().toISOString(),
+            items: cart,
+            totalAmount: totalAmount,
+            status: 'Pending',
+        };
+
+        await db.collection('orders').insertOne(newOrder);
+
+        // User ka cart khaali karein
+        await db.collection('users').updateOne({ _id: new ObjectId(req.user._id) }, { $set: { cart: [] } });
+
+        res.status(201).json(newOrder);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching orders', error: error.message });
+        res.status(500).json({ message: 'Failed to place order', error: error.message });
     }
 });
 
