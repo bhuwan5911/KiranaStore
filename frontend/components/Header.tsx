@@ -11,25 +11,39 @@ export const Header: React.FC = () => {
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // --- BADLAV START ---
+  // Dropdown menu ke liye state banayi gayi hai
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null); // Menu ke bahar click detect karne ke liye ref
+  // --- BADLAV END ---
+
   const navigate = useNavigate();
   const searchContainerRef = useRef<HTMLFormElement>(null);
   const mobileSearchContainerRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Search bar ke bahar click detect karna
       if (
         (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) &&
         (mobileSearchContainerRef.current && !mobileSearchContainerRef.current.contains(event.target as Node))
       ) {
         setShowSuggestions(false);
       }
+      // --- BADLAV START ---
+      // Account menu ke bahar click detect karna
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+      // --- BADLAV END ---
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, []); // Yeh effect ek baar hi chalega
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,8 +111,6 @@ export const Header: React.FC = () => {
     <>
       <header className="sticky top-4 z-50 container mx-auto px-4">
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-soft flex justify-between items-center py-3 px-6">
-            
-            {/* Left Side: Logo & Nav */}
             <div className="flex items-center gap-8">
               <NavLink to="/" className="text-2xl font-bold text-brand-black flex items-center">
                 <Dot size={36} className="text-primary -ml-3" />
@@ -109,9 +121,7 @@ export const Header: React.FC = () => {
               </nav>
             </div>
 
-            {/* Center: Search Bar (Desktop) */}
             <div className="hidden md:flex flex-grow justify-center px-8">
-              {/* --- BADLAV: 'flex' class add ki gayi hai taaki text aur icon ek line mein aayein --- */}
               <form ref={searchContainerRef} onSubmit={handleSearch} className="relative flex items-center bg-neutral-lightest rounded-full border border-neutral-dark/50 w-full max-w-md">
                 <input 
                   type="text" 
@@ -129,25 +139,32 @@ export const Header: React.FC = () => {
               </form>
             </div>
 
-            {/* Right Side: Icons */}
             <nav className="flex items-center">
-              {/* --- BADLAV: gap-x-2 se badha kar gap-x-3 kiya gaya hai --- */}
               <div className="hidden md:flex items-center bg-brand-black text-white rounded-full p-1.5 shadow-lg gap-x-3">
                 <NavLink to="/wishlist" className="relative p-3 hover:bg-white/20 rounded-full transition-all hover:scale-110" title="Wishlist">
                   <Heart size={22}/>
                 </NavLink>
-                <div className="relative group">
-                  <NavLink to={user ? "/account" : "/login"} className="p-3 hover:bg-white/20 rounded-full transition-all hover:scale-110">
+                
+                {/* --- BADLAV START --- */}
+                {/* Ab yeh container click ko handle karega */}
+                <div className="relative" ref={accountMenuRef}>
+                  <button 
+                    onClick={() => user ? setIsAccountMenuOpen(prev => !prev) : navigate('/login')}
+                    className="p-3 hover:bg-white/20 rounded-full transition-all hover:scale-110"
+                  >
                     <User size={22}/>
-                  </NavLink>
+                  </button>
                   {user && (
-                    <div className="absolute right-0 mt-4 w-48 bg-white rounded-xl shadow-lg py-2 z-20 hidden group-hover:block animate-fade-in">
-                        <NavLink to="/account" className="block px-4 py-2 text-sm text-gray-700 hover:bg-neutral-dark">My Account</NavLink>
-                        {user.role === 'admin' && <NavLink to="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-neutral-dark">Admin Panel</NavLink>}
-                        <button onClick={logout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-neutral-dark">Logout</button>
+                    // Hover ki jagah ab state se control hoga
+                    <div className={`absolute right-0 mt-4 w-48 bg-white rounded-xl shadow-lg py-2 z-20 animate-fade-in ${isAccountMenuOpen ? 'block' : 'hidden'}`}>
+                        <NavLink to="/account" onClick={() => setIsAccountMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My Account</NavLink>
+                        {user.role === 'admin' && <NavLink to="/admin" onClick={() => setIsAccountMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Admin Panel</NavLink>}
+                        <button onClick={() => { logout(); setIsAccountMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</button>
                     </div>
                   )}
                 </div>
+                {/* --- BADLAV END --- */}
+
                 <NavLink to="/cart" className="relative p-3 bg-primary rounded-full transition-colors" title="Cart">
                   <ShoppingCart size={22}/>
                   {cartItemCount > 0 && (
@@ -164,7 +181,7 @@ export const Header: React.FC = () => {
           </div>
       </header>
 
-      {/* Mobile Menu (No changes needed here) */}
+      {/* Mobile Menu */}
       <div className={`fixed inset-0 bg-black bg-opacity-50 z-[60] transition-opacity md:hidden ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={closeMobileMenu}></div>
       <div className={`fixed top-0 right-0 h-full w-72 bg-neutral-lightest shadow-lg z-[70] transform transition-transform md:hidden ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <div className="p-4 border-b flex justify-between items-center">

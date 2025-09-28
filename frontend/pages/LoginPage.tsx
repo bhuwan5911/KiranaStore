@@ -9,8 +9,11 @@ export const LoginPage: React.FC = () => {
   const { login } = useAppContext();
   const navigate = useNavigate();
   
-  const [email, setEmail] = useState('john.doe@example.com');
-  const [password, setPassword] = useState('password');
+  // --- BADLAV: Default values ko khaali kar diya gaya hai ---
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  // --- BADLAV END ---
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [shakeError, setShakeError] = useState(false);
@@ -25,7 +28,13 @@ export const LoginPage: React.FC = () => {
       setShakeError(true);
       setTimeout(() => setShakeError(false), 820); // Match shake animation duration
     } else {
-      navigate('/account');
+      // Login safal hone par user ko uske role ke hisaab se redirect karein
+      const loggedInUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (loggedInUser.role === 'admin') {
+          navigate('/admin/dashboard');
+      } else {
+          navigate('/account');
+      }
     }
     setLoading(false);
   };
@@ -33,7 +42,8 @@ export const LoginPage: React.FC = () => {
   const handleAdminLogin = async () => {
     setLoading(true);
     setError('');
-    const { error } = await login('admin@kiranastore.com', 'adminpassword');
+    // --- BADLAV: Admin ka password yahaan se set karein (database waala password) ---
+    const { error } = await login('admin@kiranastore.com', '123456');
     if (error) {
       setError("Admin login failed. Make sure admin user exists with these credentials.");
       setShakeError(true);
@@ -46,7 +56,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center min-h-[60vh]">
-      <div className={`w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md ${shakeError ? 'animate-shake' : ''}`}>
+      <div className={`w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-soft ${shakeError ? 'animate-shake' : ''}`}>
         <h2 className="text-3xl font-bold text-center text-text-primary">Welcome Back!</h2>
         {error && <p className="text-red-500 text-center bg-red-50 p-3 rounded-md">{error}</p>}
         <form onSubmit={handleLogin} className="space-y-6">
@@ -59,6 +69,8 @@ export const LoginPage: React.FC = () => {
             onChange={(e) => setEmail(e.target.value)} 
             required 
             disabled={loading}
+            // Browser autofill ko rokne ke liye
+            autoComplete="off"
           />
           <Input 
             label="Password" 
@@ -69,6 +81,7 @@ export const LoginPage: React.FC = () => {
             onChange={(e) => setPassword(e.target.value)} 
             required 
             disabled={loading}
+            autoComplete="current-password"
           />
           <div>
             <Button type="submit" className="w-full" size="lg" disabled={loading}>

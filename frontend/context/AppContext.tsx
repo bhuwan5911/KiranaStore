@@ -60,11 +60,11 @@ interface AppContextType {
   fetchReviewsForProduct: (productId: number) => Promise<Review[]>;
   addReview: (productId: number, review: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id'>) => Promise<Review | null>;
   updateUserProfile: (profileData: Partial<User>) => Promise<boolean>;
-  addProduct: (product: Omit<Product, 'id' | 'rating' | 'reviews'>) => Promise<void>;
+  addProduct: (product: Omit<Product, 'id' | 'rating' | 'reviews' | '_id'>) => Promise<void>;
   addProductsBulk: (products: Omit<Product, 'id' | 'rating' | 'reviews'>[]) => Promise<{ success: boolean; message: string }>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (productId: number) => Promise<void>;
-  updateOrderStatus: (orderId: number, status: Order['status']) => Promise<void>;
+  updateOrderStatus: (orderId: any, status: Order['status']) => Promise<void>;
   placeOrder: (shippingAddress: any) => Promise<{ error: string | null; outOfStockItems?: number[] }>;
   toggleCompare: (product: Product) => void;
   isInCompare: (productId: number) => boolean;
@@ -90,8 +90,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [showOfflineModal, setShowOfflineModal] = useState(false);
   
-  // --- BADLAV: `addToast` ko useCallback mein wrap kiya gaya hai ---
-  // Isse yeh function baar-baar nahi banega aur infinite loops se bachayega.
   const addToast = useCallback((message: string, type: ToastMessage['type']) => {
     const id = Date.now();
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
@@ -105,7 +103,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setProducts(data);
     } catch (error) {
         console.error("Failed to fetch products:", error);
-        addToast("Could not load products. Please check connection.", 'error');
+        addToast("Could not load products. Using sample data.", 'error');
         setIsOffline(true);
     }
   }, [addToast]);
@@ -134,14 +132,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUsers([]);
     addToast('You have been logged out.', 'info');
   }, [addToast]);
+  
+  // --- BADLAV START: Saare data fetch karne waale functions ko alag se useCallback mein daala gaya hai ---
+  const fetchUserCart = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/cart`); if (res.ok) setCart(await res.json()); } catch (e) { console.error(e); } }, []);
+  const fetchUserWishlist = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/wishlist`); if (res.ok) setWishlist(await res.json()); } catch (e) { console.error(e); } }, []);
+  const fetchUserOrders = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/orders`); if (res.ok) setOrders(await res.json()); } catch(e) { console.error(e) } }, []);
+  const fetchAdminData = useCallback(async () => { try { const [usersRes, ordersRes] = await Promise.all([ fetchWithAuth(`${API_URL}/admin/users`), fetchWithAuth(`${API_URL}/admin/orders`) ]); if(usersRes.ok) setUsers(await usersRes.json()); if(ordersRes.ok) setOrders(await ordersRes.json()); } catch(e) { console.error(e); } }, []);
 
   const fetchUserProfile = useCallback(async () => {
-    // fetchAdminData, fetchUserCart, etc. are defined inside this scope so they are fine
-    const fetchAdminData = async () => { /* ... implementation ... */ };
-    const fetchUserCart = async () => { /* ... implementation ... */ };
-    const fetchUserWishlist = async () => { /* ... implementation ... */ };
-    const fetchUserOrders = async (currentUser: User) => { /* ... implementation ... */ };
-
     try {
         const res = await fetchWithAuth(`${API_URL}/users/profile`);
         if (!res.ok) {
@@ -150,17 +148,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         const userData = await res.json();
         setUser(userData);
-        fetchUserCart();
-        fetchUserWishlist();
-        fetchUserOrders(userData);
+        await fetchUserCart();
+        await fetchUserWishlist();
         if (userData.role === 'admin') {
-            fetchAdminData();
+            await fetchAdminData();
+        } else {
+            await fetchUserOrders();
         }
     } catch (error) {
         console.error("Failed to fetch user profile:", error);
         logout();
     }
-  }, [logout]);
+  }, [logout, fetchUserCart, fetchUserWishlist, fetchUserOrders, fetchAdminData]);
+  // --- BADLAV END ---
 
   useEffect(() => {
     const loadUser = async () => {
@@ -227,6 +227,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const removeFromCart = async (productId: number) => {
+    if (!user) return;
+    try {
+         const res = await fetchWithAuth(`${API_URL}/users/cart/${productId}`, { method: 'DELETE' });
+         const data = await res.json();
+         if (!res.ok) throw new Error(data.message);
+         setCart(data);
+         addToast('Item removed from cart.', 'info');
+    } catch (e: any) {
+        addToast(e.message || 'Could not remove item.', 'error');
+    }
+  };
+  
   const addToCart = async (product: Product, quantity = 1) => {
     if (!user) { addToast("Please log in to add items.", 'info'); return; }
     try {
@@ -239,19 +252,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setCart(data);
     } catch (e: any) {
         addToast(e.message || 'Could not add to cart.', 'error');
-    }
-  };
-
-  const removeFromCart = async (productId: number) => {
-    if (!user) return;
-    try {
-         const res = await fetchWithAuth(`${API_URL}/users/cart/${productId}`, { method: 'DELETE' });
-         const data = await res.json();
-         if (!res.ok) throw new Error(data.message);
-         setCart(data);
-         addToast('Item removed from cart.', 'info');
-    } catch (e: any) {
-        addToast(e.message || 'Could not remove item.', 'error');
     }
   };
   
@@ -296,7 +296,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addWishlistToCart = async () => { /* Logic to be implemented if needed */ };
   const isInWishlist = (productId: number) => wishlist.some(item => item.id === productId);
 
-  // --- BADLAV: `addRecentlyViewed` ko useCallback mein wrap kiya gaya hai ---
   const addRecentlyViewed = useCallback((product: Product) => {
     setRecentlyViewed(prev => {
         const existing = prev.find(p => p.id === product.id);
@@ -305,7 +304,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   }, []);
 
-  // --- BADLAV: `fetchReviewsForProduct` ko useCallback mein wrap kiya gaya hai ---
   const fetchReviewsForProduct = useCallback(async (productId: number): Promise<Review[]> => {
     try {
         const res = await fetch(`${API_URL}/products/${productId}/reviews`);
@@ -386,19 +384,113 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // ... (Baaki saare functions yahaan poore hain) ...
-  const redeemPoints = async (pointsToRedeem: number) => { /* ... */ };
-  const subscribeToStock = async (productId: number) => { /* ... */ };
-  const isSubscribedToStock = (productId: number) => false;
-  const addProduct = async (productData: Omit<Product, 'id' | 'rating' | 'reviews'>) => { /* ... */ };
-  const addProductsBulk = async (productsToAdd: Omit<Product, 'id' | 'rating' | 'reviews'>[]): Promise<{ success: boolean; message: string }> => { /* ... */ return { success: true, message: '' }; };
-  const updateProduct = async (updatedProduct: Product) => { /* ... */ };
-  const deleteProduct = async (productId: number) => { /* ... */ };
-  const updateOrderStatus = async (orderId: number, status: Order['status']) => { /* ... */ };
-  const toggleCompare = (product: Product) => { /* ... */ };
-  const isInCompare = (productId: number) => false;
-  const clearCompare = () => setComparisonList([]);
+  const redeemPoints = async (pointsToRedeem: number) => {
+      if (user && user.loyaltyPoints >= pointsToRedeem) {
+          await updateUserProfile({ loyaltyPoints: user.loyaltyPoints - pointsToRedeem });
+      }
+  };
 
+  const subscribeToStock = async (productId: number) => {
+      if (user && !user.stockNotifications?.includes(productId)) {
+          const currentSubs = user.stockNotifications || [];
+          const success = await updateUserProfile({ stockNotifications: [...currentSubs, productId] });
+          if(success) addToast("You'll be notified when this is back in stock!", 'success');
+      }
+  };
+  
+  const isSubscribedToStock = (productId: number) => user?.stockNotifications?.includes(productId) || false;
+  
+  const addProduct = async (productData: Omit<Product, 'id' | 'rating' | 'reviews' | '_id'>) => {
+    try {
+        const res = await fetchWithAuth(`${API_URL}/admin/products`, {
+            method: 'POST',
+            body: JSON.stringify(productData)
+        });
+        const newProduct = await res.json();
+        if (!res.ok) throw new Error(newProduct.message);
+        setProducts(prev => [...prev, newProduct]);
+        addToast('Product added successfully!', 'success');
+    } catch (e: any) {
+        addToast(e.message || "Failed to add product.", 'error');
+    }
+  };
+
+  const addProductsBulk = async (productsToAdd: Omit<Product, 'id' | 'rating' | 'reviews'>[]): Promise<{ success: boolean; message: string }> => {
+        try {
+            const res = await fetchWithAuth(`${API_URL}/admin/products/bulk`, {
+                method: 'POST',
+                body: JSON.stringify(productsToAdd)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            
+            await fetchProducts();
+            addToast(data.message, 'success');
+            return { success: true, message: data.message };
+        } catch (e: any) {
+            const errorMessage = e.message || "Failed to bulk add products.";
+            addToast(errorMessage, 'error');
+            return { success: false, message: errorMessage };
+        }
+    };
+
+  const updateProduct = async (updatedProduct: Product) => {
+      try {
+          const res = await fetchWithAuth(`${API_URL}/admin/products/${updatedProduct.id}`, {
+              method: 'PUT',
+              body: JSON.stringify(updatedProduct)
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message);
+          setProducts(prev => prev.map(p => p.id === updatedProduct.id ? data : p));
+          addToast('Product updated successfully!', 'success');
+      } catch (e: any) {
+          addToast(e.message || "Failed to update product.", 'error');
+      }
+  };
+
+  const deleteProduct = async (productId: number) => {
+      try {
+          const res = await fetchWithAuth(`${API_URL}/admin/products/${productId}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message);
+          }
+          setProducts(prev => prev.filter(p => p.id !== productId));
+          addToast('Product deleted.', 'info');
+      } catch (e: any) {
+          addToast(e.message || "Failed to delete product.", 'error');
+      }
+  };
+  
+  const updateOrderStatus = async (orderId: any, status: Order['status']) => {
+      try {
+          const res = await fetchWithAuth(`${API_URL}/admin/orders/${orderId}/status`, {
+              method: 'PUT',
+              body: JSON.stringify({ status })
+          });
+          const updatedOrder = await res.json();
+          if (!res.ok) throw new Error(updatedOrder.message);
+          setOrders(prev => prev.map(o => o._id === orderId ? updatedOrder : o));
+          addToast(`Order status updated.`, 'success');
+      } catch (e: any) {
+          addToast(e.message || "Failed to update order status.", 'error');
+      }
+  };
+
+  const toggleCompare = (product: Product) => {
+    setComparisonList(prev => {
+        const isInList = prev.some(p => p.id === product.id);
+        if (isInList) return prev.filter(p => p.id !== product.id);
+        if (prev.length >= 4) {
+            addToast('You can compare a maximum of 4 products.', 'info');
+            return prev;
+        }
+        return [...prev, product];
+    });
+  };
+  const isInCompare = (productId: number) => comparisonList.some(p => p.id === productId);
+  const clearCompare = () => setComparisonList([]);
 
   return (
     <AppContext.Provider

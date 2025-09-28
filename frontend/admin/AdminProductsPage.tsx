@@ -3,12 +3,14 @@ import { useAppContext } from "../context/AppContext";
 import { Product } from '../../types';
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { categories } from "../data/mockData";
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import { BulkUploadModal } from '../components/admin/BulkUploadModal'; // Bulk Upload Modal ko import karein
 
 export const AdminProductsPage: React.FC = () => {
-    const { products, addProduct, updateProduct, deleteProduct } = useAppContext();
+    // --- BADLAV: categories ko mockData ki jagah AppContext se lein ---
+    const { products, categories, addProduct, updateProduct, deleteProduct } = useAppContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false); // Bulk modal ke liye state
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -53,22 +55,26 @@ export const AdminProductsPage: React.FC = () => {
         if (editingProduct) {
             updateProduct({ ...editingProduct, ...productData });
         } else {
-            addProduct(productData);
+            addProduct(productData as Omit<Product, 'id' | 'rating' | 'reviews' | '_id'>);
         }
         closeModal();
     };
 
     const handleDelete = (productId: number) => {
-        if(window.confirm('Are you sure you want to delete this product?')) {
-            deleteProduct(productId);
-        }
+        // NOTE: window.confirm production apps ke liye accha nahi hai.
+        // Future mein iski jagah ek custom confirmation modal banayein.
+        deleteProduct(productId);
     }
 
     return (
-        <div className="bg-neutral-light p-6 rounded-lg shadow-lg">
+        <div className="bg-white p-6 rounded-2xl shadow-soft">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-text-primary">Manage Products</h1>
-                <Button onClick={() => openModal()}><Plus className="mr-2" size={18} />Add Product</Button>
+                <div className="flex gap-4">
+                    {/* Bulk Add Button */}
+                    <Button variant="ghost" onClick={() => setIsBulkModalOpen(true)}>Bulk Add</Button>
+                    <Button onClick={() => openModal()}><Plus className="mr-2" size={18} />Add Product</Button>
+                </div>
             </div>
             
             <div className="mb-4">
@@ -82,7 +88,7 @@ export const AdminProductsPage: React.FC = () => {
 
             <div className="overflow-x-auto">
                 <table className="min-w-full">
-                    <thead className="bg-neutral-dark">
+                    <thead className="bg-gray-50">
                         <tr>
                             <th className="text-left p-3 font-semibold text-text-secondary">Image</th>
                             <th className="text-left p-3 font-semibold text-text-secondary">Name</th>
@@ -95,7 +101,7 @@ export const AdminProductsPage: React.FC = () => {
                     <tbody>
                         {filteredProducts.length > 0 ? (
                             filteredProducts.map(product => (
-                                <tr key={product.id} className="border-b border-neutral-dark transition-colors hover:bg-teal-50">
+                                <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50">
                                     <td className="p-3"><img src={product.imageUrl} alt={product.name} className="w-12 h-12 object-cover rounded"/></td>
                                     <td className="p-3 font-medium text-text-primary">{product.name}</td>
                                     <td className="p-3 text-text-secondary capitalize">{product.category.replace('-', ' & ')}</td>
@@ -122,14 +128,14 @@ export const AdminProductsPage: React.FC = () => {
             
             {/* Add/Edit Product Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 animate-fade-in">
-                    <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-in-up">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
                         <h2 className="text-2xl font-bold mb-6">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
                         <form onSubmit={handleFormSubmit} className="space-y-4">
                             <Input label="Product Name" name="name" defaultValue={editingProduct?.name} required />
                             <div>
                                <label htmlFor="category" className="block text-sm font-medium text-text-secondary mb-1">Category</label>
-                               <select name="category" id="category" defaultValue={editingProduct?.category} className="w-full px-3 py-2 border border-neutral-dark rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" required>
+                               <select name="category" id="category" defaultValue={editingProduct?.category} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary" required>
                                    {categories.map(cat => <option key={cat.slug} value={cat.slug}>{cat.name}</option>)}
                                </select>
                             </div>
@@ -144,14 +150,14 @@ export const AdminProductsPage: React.FC = () => {
                                     id="imageUrls" 
                                     rows={4} 
                                     defaultValue={[editingProduct?.imageUrl, ...(editingProduct?.relatedImages || [])].join('\n')}
-                                    className="w-full px-3 py-2 border border-neutral-dark rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" 
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary" 
                                     placeholder="Enter image URLs, one per line. The first URL is the main image."
                                     required
                                 ></textarea>
                             </div>
                             <div>
                                 <label htmlFor="description" className="block text-sm font-medium text-text-secondary mb-1">Description</label>
-                                <textarea name="description" id="description" rows={3} defaultValue={editingProduct?.description} className="w-full px-3 py-2 border border-neutral-dark rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" required></textarea>
+                                <textarea name="description" id="description" rows={3} defaultValue={editingProduct?.description} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary" required></textarea>
                             </div>
                             <div className="flex justify-end space-x-4 pt-4">
                                 <Button type="button" variant="ghost" onClick={closeModal}>Cancel</Button>
@@ -161,6 +167,9 @@ export const AdminProductsPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Bulk Upload Modal */}
+            <BulkUploadModal isOpen={isBulkModalOpen} onClose={() => setIsBulkModalOpen(false)} />
         </div>
     );
 };

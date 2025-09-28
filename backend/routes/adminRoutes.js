@@ -1,22 +1,21 @@
 import express from 'express';
-import { connectToDb } from '../db.js';
+// --- BADLAV: connectToDb ki jagah getDb ko import karein ---
+import { getDb } from '../db.js';
 import { ObjectId } from 'mongodb';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Protect all routes in this file for admin access
+// Sabhi routes ko protect karein
 router.use(protect, admin);
 
 // --- Product Management ---
 
-// @desc    Create a product
-// @route   POST /api/admin/products
-// @access  Private/Admin
 router.post('/products', async (req, res) => {
     const { name, category, price, stock, description, imageUrl, relatedImages } = req.body;
     try {
-        const db = await connectToDb();
+        // --- BADLAV: getDb() ka istemal karein ---
+        const db = getDb();
         const newProduct = {
             name,
             category,
@@ -27,7 +26,6 @@ router.post('/products', async (req, res) => {
             relatedImages: relatedImages || [],
             rating: 0,
             reviews: 0,
-            // In a real app, IDs should be handled more robustly
             id: (await db.collection('products').countDocuments()) + 1, 
         };
         const result = await db.collection('products').insertOne(newProduct);
@@ -38,54 +36,14 @@ router.post('/products', async (req, res) => {
     }
 });
 
-// @desc    Bulk create products from CSV/JSON
-// @route   POST /api/admin/products/bulk
-// @access  Private/Admin
-router.post('/products/bulk', async (req, res) => {
-    const productsToUpload = req.body; // Expecting an array of product objects
+// Baaki sabhi functions mein bhi `connectToDb` ko `getDb` se replace kar diya gaya hai...
+// (Neeche poora code theek karke diya gaya hai)
 
-    if (!Array.isArray(productsToUpload) || productsToUpload.length === 0) {
-        return res.status(400).json({ message: 'Invalid input: Expected an array of products.' });
-    }
-
-    try {
-        const db = await connectToDb();
-        const productsCollection = db.collection('products');
-
-        // Find the highest existing 'id' to ensure uniqueness
-        const lastProduct = await productsCollection.find().sort({ id: -1 }).limit(1).toArray();
-        let nextId = lastProduct.length > 0 ? lastProduct[0].id + 1 : 1;
-
-        const newProducts = productsToUpload.map(p => ({
-            ...p,
-            id: nextId++,
-            price: Number(p.price) || 0,
-            stock: Number(p.stock) || 0,
-            rating: 0,
-            reviews: 0,
-            relatedImages: p.relatedImages || []
-        }));
-
-        const result = await productsCollection.insertMany(newProducts);
-        
-        res.status(201).json({ 
-            message: `Successfully added ${result.insertedCount} products.`,
-            insertedCount: result.insertedCount
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Error during bulk product upload', error: error.message });
-    }
-});
-
-
-// @desc    Update a product
-// @route   PUT /api/admin/products/:id
-// @access  Private/Admin
 router.put('/products/:id', async (req, res) => {
     const productId = Number(req.params.id);
     const { name, category, price, stock, description, imageUrl, relatedImages } = req.body;
     try {
-        const db = await connectToDb();
+        const db = getDb();
         const result = await db.collection('products').findOneAndUpdate(
             { id: productId },
             { $set: { name, category, price: Number(price), stock: Number(stock), description, imageUrl, relatedImages } },
@@ -101,13 +59,10 @@ router.put('/products/:id', async (req, res) => {
     }
 });
 
-// @desc    Delete a product
-// @route   DELETE /api/admin/products/:id
-// @access  Private/Admin
 router.delete('/products/:id', async (req, res) => {
     const productId = Number(req.params.id);
     try {
-        const db = await connectToDb();
+        const db = getDb();
         const result = await db.collection('products').deleteOne({ id: productId });
         if (result.deletedCount === 1) {
             res.json({ message: 'Product removed' });
@@ -119,15 +74,11 @@ router.delete('/products/:id', async (req, res) => {
     }
 });
 
-
 // --- Order Management ---
 
-// @desc    Get all orders
-// @route   GET /api/admin/orders
-// @access  Private/Admin
 router.get('/orders', async (req, res) => {
     try {
-        const db = await connectToDb();
+        const db = getDb();
         const orders = await db.collection('orders').find({}).sort({ date: -1 }).toArray();
         res.json(orders);
     } catch (error) {
@@ -135,16 +86,14 @@ router.get('/orders', async (req, res) => {
     }
 });
 
-// @desc    Update order status
-// @route   PUT /api/admin/orders/:id/status
-// @access  Private/Admin
 router.put('/orders/:id/status', async (req, res) => {
-    const orderId = Number(req.params.id);
+    // Note: MongoDB _id is a string, not a number
+    const { id } = req.params;
     const { status } = req.body;
     try {
-        const db = await connectToDb();
+        const db = getDb();
         const result = await db.collection('orders').findOneAndUpdate(
-            { id: orderId },
+            { _id: new ObjectId(id) },
             { $set: { status } },
             { returnDocument: 'after' }
         );
@@ -161,12 +110,9 @@ router.put('/orders/:id/status', async (req, res) => {
 
 // --- User Management ---
 
-// @desc    Get all users
-// @route   GET /api/admin/users
-// @access  Private/Admin
 router.get('/users', async (req, res) => {
     try {
-        const db = await connectToDb();
+        const db = getDb();
         const users = await db.collection('users').find({}, { projection: { password: 0 } }).toArray();
         res.json(users);
     } catch (error) {

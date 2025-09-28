@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HomePage } from './pages/HomePage';
@@ -36,8 +36,9 @@ const ScrollToTop = () => {
   return null;
 };
 
+// --- BADLAV: MainLayout ko alag kar diya gaya hai ---
+// Yeh public (aam users ke liye) pages ka structure hai
 const MainLayout = () => {
-  const location = useLocation();
   const { isOffline, showOfflineModal, closeOfflineModal } = useAppContext();
   
   return (
@@ -45,28 +46,15 @@ const MainLayout = () => {
       {isOffline && (
         <div className="bg-yellow-400 text-yellow-900 font-bold p-2 text-center flex items-center justify-center sticky top-0 z-[100]">
           <AlertTriangle size={16} className="mr-2" />
-          Connection failed. Viewing in offline mode with sample data.
+          Connection failed. Viewing in offline mode.
         </div>
       )}
       <Header />
       <ToastContainer />
       <OfflineModal isOpen={showOfflineModal} onClose={closeOfflineModal} />
-      <main key={location.pathname} className="flex-grow container mx-auto px-4 py-8 animate-fade-in">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/products/:categorySlug" element={<ProductsPage />} />
-          <Route path="/product/:id" element={<ProductDetailPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/account" element={<AccountPage />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/track-order" element={<OrderTrackingPage />} />
-          <Route path="/track-order/:orderId" element={<OrderTrackingPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+      <main className="flex-grow container mx-auto px-4 py-8 animate-fade-in">
+        {/* Outlet yahan par active public page (jaise HomePage, CartPage) ko render karega */}
+        <Outlet />
       </main>
       <Footer />
       <ComparisonTray />
@@ -80,25 +68,39 @@ const App: React.FC = () => {
       <HashRouter>
         <ScrollToTop />
         <Routes>
-          {/* Admin Routes - FIXED */}
-          <Route 
-            path="/admin/*"
-            element={
-              <ProtectedRoute>
-                <AdminLayout />
-              </ProtectedRoute>
-            } 
-          >
-            {/* Nested routes inside AdminLayout */}
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="products" element={<AdminProductsPage />} />
-            <Route path="orders" element={<AdminOrdersPage />} />
-            <Route path="users" element={<AdminUsersPage />} />
-            <Route index element={<Navigate to="dashboard" />} />
+          
+          {/* --- BADLAV: Admin Routes ko is naye aur sahi tareeke se structure kiya gaya hai --- */}
+          {/* Step 1: Check karo ki user admin hai ya nahi */}
+          <Route element={<ProtectedRoute />}>
+            {/* Step 2: Agar admin hai, to AdminLayout dikhao */}
+            <Route path="/admin" element={<AdminLayout />}>
+              {/* Step 3: AdminLayout ke andar alag-alag admin pages dikhao */}
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="products" element={<AdminProductsPage />} />
+              <Route path="orders" element={<AdminOrdersPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
+            </Route>
           </Route>
           
-          {/* Public Routes */}
-          <Route path="/*" element={<MainLayout />} />
+          {/* --- BADLAV: Public Routes ab MainLayout ke andar hain --- */}
+          <Route path="/*" element={<MainLayout />}>
+             {/* Yeh saare routes MainLayout ke andar render honge */}
+            <Route index element={<HomePage />} />
+            <Route path="products/:categorySlug" element={<ProductsPage />} />
+            <Route path="product/:id" element={<ProductDetailPage />} />
+            <Route path="cart" element={<CartPage />} />
+            <Route path="checkout" element={<CheckoutPage />} />
+            <Route path="login" element={<LoginPage />} />
+            <Route path="signup" element={<SignupPage />} />
+            <Route path="account" element={<AccountPage />} />
+            <Route path="wishlist" element={<WishlistPage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="track-order" element={<OrderTrackingPage />} />
+            <Route path="track-order/:orderId" element={<OrderTrackingPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+
         </Routes>
       </HashRouter>
     </AppProvider>
