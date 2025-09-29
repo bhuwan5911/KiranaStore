@@ -27,6 +27,12 @@ import { AdminProductsPage } from './admin/AdminProductsPage';
 import { AdminOrdersPage } from './admin/AdminOrdersPage';
 import { AdminUsersPage } from './admin/AdminUsersPage';
 import { ProtectedRoute } from './admin/ProtectedRoute';
+import { AdminLoginPage } from './pages/AdminLoginPage';
+
+// --- BADLAV START: Naye password reset pages ko import karein ---
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+// --- BADLAV END ---
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -36,8 +42,6 @@ const ScrollToTop = () => {
   return null;
 };
 
-// --- BADLAV: MainLayout ko alag kar diya gaya hai ---
-// Yeh public (aam users ke liye) pages ka structure hai
 const MainLayout = () => {
   const { isOffline, showOfflineModal, closeOfflineModal } = useAppContext();
   
@@ -53,7 +57,6 @@ const MainLayout = () => {
       <ToastContainer />
       <OfflineModal isOpen={showOfflineModal} onClose={closeOfflineModal} />
       <main className="flex-grow container mx-auto px-4 py-8 animate-fade-in">
-        {/* Outlet yahan par active public page (jaise HomePage, CartPage) ko render karega */}
         <Outlet />
       </main>
       <Footer />
@@ -69,12 +72,9 @@ const App: React.FC = () => {
         <ScrollToTop />
         <Routes>
           
-          {/* --- BADLAV: Admin Routes ko is naye aur sahi tareeke se structure kiya gaya hai --- */}
-          {/* Step 1: Check karo ki user admin hai ya nahi */}
+          {/* Admin Routes */}
           <Route element={<ProtectedRoute />}>
-            {/* Step 2: Agar admin hai, to AdminLayout dikhao */}
             <Route path="/admin" element={<AdminLayout />}>
-              {/* Step 3: AdminLayout ke andar alag-alag admin pages dikhao */}
               <Route index element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="products" element={<AdminProductsPage />} />
@@ -83,21 +83,27 @@ const App: React.FC = () => {
             </Route>
           </Route>
           
-          {/* --- BADLAV: Public Routes ab MainLayout ke andar hain --- */}
+          {/* Public Routes */}
           <Route path="/*" element={<MainLayout />}>
-             {/* Yeh saare routes MainLayout ke andar render honge */}
             <Route index element={<HomePage />} />
             <Route path="products/:categorySlug" element={<ProductsPage />} />
             <Route path="product/:id" element={<ProductDetailPage />} />
             <Route path="cart" element={<CartPage />} />
             <Route path="checkout" element={<CheckoutPage />} />
             <Route path="login" element={<LoginPage />} />
+            <Route path="admin-login" element={<AdminLoginPage />} />
             <Route path="signup" element={<SignupPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="wishlist" element={<WishlistPage />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="track-order" element={<OrderTrackingPage />} />
             <Route path="track-order/:orderId" element={<OrderTrackingPage />} />
+            
+            {/* --- BADLAV START: Naye password reset routes add kiye gaye hain --- */}
+            <Route path="forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="reset-password/:token" element={<ResetPasswordPage />} />
+            {/* --- BADLAV END --- */}
+
             <Route path="*" element={<NotFoundPage />} />
           </Route>
 

@@ -58,7 +58,9 @@ interface AppContextType {
   addRecentlyViewed: (product: Product) => void;
   getProductById: (id: number) => Product | undefined;
   fetchReviewsForProduct: (productId: number) => Promise<Review[]>;
-  addReview: (productId: number, review: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id'>) => Promise<Review | null>;
+  addReview: (productId: number, review: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id' | '_id'>) => Promise<Review | null>;
+  deleteReview: (productId: number, reviewId: any) => Promise<boolean>;
+  editReview: (productId: number, reviewId: any, newRating: number, newComment: string) => Promise<Review | null>;
   updateUserProfile: (profileData: Partial<User>) => Promise<boolean>;
   addProduct: (product: Omit<Product, 'id' | 'rating' | 'reviews' | '_id'>) => Promise<void>;
   addProductsBulk: (products: Omit<Product, 'id' | 'rating' | 'reviews'>[]) => Promise<{ success: boolean; message: string }>;
@@ -133,7 +135,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addToast('You have been logged out.', 'info');
   }, [addToast]);
   
-  // --- BADLAV START: Saare data fetch karne waale functions ko alag se useCallback mein daala gaya hai ---
   const fetchUserCart = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/cart`); if (res.ok) setCart(await res.json()); } catch (e) { console.error(e); } }, []);
   const fetchUserWishlist = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/wishlist`); if (res.ok) setWishlist(await res.json()); } catch (e) { console.error(e); } }, []);
   const fetchUserOrders = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/orders`); if (res.ok) setOrders(await res.json()); } catch(e) { console.error(e) } }, []);
@@ -160,7 +161,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         logout();
     }
   }, [logout, fetchUserCart, fetchUserWishlist, fetchUserOrders, fetchAdminData]);
-  // --- BADLAV END ---
 
   useEffect(() => {
     const loadUser = async () => {
@@ -364,7 +364,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }
 
-  const addReview = async (productId: number, reviewData: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id'>): Promise<Review | null> => {
+  const addReview = async (productId: number, reviewData: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id' | '_id'>): Promise<Review | null> => {
     if (!user) {
         addToast('You must be logged in to leave a review.', 'info');
         return null;
@@ -377,12 +377,54 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newReview = await res.json();
         if (!res.ok) throw new Error(newReview.message || 'Failed to submit review');
         addToast('Thank you for your review!', 'success');
+        await fetchProducts();
         return newReview as Review;
     } catch(e: any) {
       addToast(e.message || 'Network error: Could not submit review.', 'error');
       return null;
     }
   };
+  
+  const deleteReview = async (productId: number, reviewId: any) => {
+    try {
+        const res = await fetchWithAuth(`${API_URL}/products/${productId}/reviews/${reviewId}`, {
+            method: 'DELETE',
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message);
+        }
+        addToast('Review deleted successfully', 'success');
+        await fetchProducts();
+        return true;
+    } catch (e: any) {
+        addToast(e.message || "Failed to delete review.", 'error');
+        return false;
+    }
+  };
+
+  // --- BADLAV START ---
+  // Naya editReview function add kiya gaya hai
+  const editReview = async (productId: number, reviewId: any, newRating: number, newComment: string): Promise<Review | null> => {
+    try {
+        const res = await fetchWithAuth(`${API_URL}/products/${productId}/reviews/${reviewId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ rating: newRating, comment: newComment }),
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message);
+        }
+        const updatedReview = await res.json();
+        addToast('Review updated successfully', 'success');
+        await fetchProducts(); // Product rating update ke liye products refetch karein
+        return updatedReview;
+    } catch (e: any) {
+        addToast(e.message || "Failed to update review.", 'error');
+        return null;
+    }
+  };
+  // --- BADLAV END ---
 
   const redeemPoints = async (pointsToRedeem: number) => {
       if (user && user.loyaltyPoints >= pointsToRedeem) {
@@ -501,7 +543,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         cartTotal, deliveryCharge, discount, finalTotal, addToast, removeToast,
         addRecentlyViewed, getProductById, updateUserProfile, addProduct, addProductsBulk, updateProduct, deleteProduct,
         updateOrderStatus, placeOrder, toggleCompare, isInCompare, clearCompare,
-        showOfflineModal, closeOfflineModal, fetchReviewsForProduct, addReview, redeemPoints,
+        showOfflineModal, closeOfflineModal, fetchReviewsForProduct, addReview, deleteReview, editReview, redeemPoints,
         subscribeToStock, isSubscribedToStock
       }}
     >

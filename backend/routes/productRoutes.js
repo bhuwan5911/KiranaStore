@@ -1,11 +1,7 @@
 import express from 'express';
-// --- BADLAV START ---
-// connectToDb ki jagah getDb ko import karein
 import { getDb } from '../db.js';
-// protect middleware ko import karein private routes ke liye
 import { protect } from '../middleware/authMiddleware.js';
 import { ObjectId } from 'mongodb';
-// --- BADLAV END ---
 
 const router = express.Router();
 
@@ -15,12 +11,9 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     const { category } = req.query;
     try {
-        // --- BADLAV START ---
-        // Pehle se bane hue connection ko getDb() se lein
         const db = getDb();
-        // --- BADLAV END ---
         let query = {};
-        if (category && category !== 'all') { // 'all' category ke liye filter na karein
+        if (category && category !== 'all') {
             query = { category: category };
         }
         const products = await db.collection('products').find(query).toArray();
@@ -36,7 +29,6 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const db = getDb();
-        // Frontend se ID string mein aati hai, use number mein convert karein
         const productId = Number(req.params.id);
         const product = await db.collection('products').findOne({ id: productId });
 
@@ -49,16 +41,15 @@ router.get('/:id', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching product' });
     }
 });
+
 // @desc    Get reviews for a product
 // @route   GET /api/products/:id/reviews
 // @access  Public
 router.get('/:id/reviews', async (req, res) => {
     const productId = Number(req.params.id);
     try {
-        // --- BADLAV START ---
         const db = getDb();
-        // --- BADLAV END ---
-        const reviews = await db.collection('reviews').find({ product_id: productId }).toArray();
+        const reviews = await db.collection('reviews').find({ product_id: productId }).sort({ date: -1 }).toArray();
         res.json(reviews);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching reviews', error: error.message });
@@ -68,44 +59,127 @@ router.get('/:id/reviews', async (req, res) => {
 // @desc    Add a review for a product
 // @route   POST /api/products/:id/reviews
 // @access  Private
-// --- BADLAV START ---
-// protect middleware add kiya gaya hai
 router.post('/:id/reviews', protect, async (req, res) => {
-// --- BADLAV END ---
     const productId = Number(req.params.id);
-    const { rating, comment } = req.body; // author ko req.user se lenge
+    const { rating, comment } = req.body;
+    
     try {
         const db = getDb();
         
-        // Manual check ki ab zaroorat nahi, protect middleware handle karega
-        // if (!req.user) { ... }
-        
         const newReview = {
             product_id: productId,
-            user_id: new ObjectId(req.user._id), // user_id ko ObjectId olarak save karein
-            author: req.user.name, // Logged-in user ka naam use karein
+            user_id: new ObjectId(req.user._id),
+            author: req.user.name,
             rating: Number(rating),
             comment,
             date: new Date().toISOString(),
         };
 
         const result = await db.collection('reviews').insertOne(newReview);
+        const createdReview = await db.collection('reviews').findOne({ _id: result.insertedId });
         
-        // Product ki average rating update karein
-        const reviewsForProduct = await db.collection('reviews').find({ product_id: productId }).toArray();
-        const totalReviews = reviewsForProduct.length;
-        const totalRating = reviewsForProduct.reduce((acc, item) => item.rating + acc, 0);
-        const newAverageRating = totalRating / totalReviews;
+        // Product ki average rating aur review count update karein
+        const allReviews = await db.collection('reviews').find({ product_id: productId }).toArray();
+        const totalReviews = allReviews.length;
+        const avgRating = allReviews.reduce((acc, item) => item.rating + acc, 0) / totalReviews;
 
         await db.collection('products').updateOne(
             { id: productId },
-            { $set: { reviews: totalReviews, rating: parseFloat(newAverageRating.toFixed(1)) } }
+            { $set: { reviews: totalReviews, rating: parseFloat(avgRating.toFixed(1)) } }
         );
         
-        res.status(201).json({ ...newReview, _id: result.insertedId });
+        res.status(201).json(createdReview);
     } catch (error) {
         res.status(400).json({ message: 'Error submitting review', error: error.message });
     }
 });
+// @desc    Delete a review
+// @route   DELETE /api/products/:productId/reviews/:reviewId
+// @access  Private
+router.delete('/:productId/reviews/:reviewId', protect, async (req, res) => {
+    try {
+        const db = getDb();
+        const reviewId = new ObjectId(req.params.reviewId);
+        
+        // Check karein ki review मौजूद hai aur use delete karne wala user uska owner hai
+        const review = await db.collection('reviews').findOne({ _id: reviewId });
+
+        if (!review) {
+            return res.status(404).json({ message: 'Review not found' });
+        }
+
+        if (review.user_id.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'User not authorized to delete this review' });
+        }
+
+        await db.collection('reviews').deleteOne({ _id: reviewId });
+        
+        // Product ki rating dobara calculate karein
+        const productId = Number(req.params.productId);
+        const allReviews = await db.collection('reviews').find({ product_id: productId }).toArray();
+        const totalReviews = allReviews.length;
+        const avgRating = totalReviews > 0 
+            ? allReviews.reduce((acc, item) => item.rating + acc, 0) / totalReviews 
+            : 0;
+
+        await db.collection('products').updateOne(
+            { id: productId },
+            { $set: { reviews: totalReviews, rating: parseFloat(avgRating.toFixed(1)) } }
+        );
+
+        res.json({ message: 'Review removed' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+// @desc    Update a review
+// @route   PUT /api/products/:productId/reviews/:reviewId
+// @access  Private
+router.put('/:productId/reviews/:reviewId', protect, async (req, res) => {
+    const { rating, comment } = req.body;
+    try {
+        const db = getDb();
+        const reviewId = new ObjectId(req.params.reviewId);
+        
+        const review = await db.collection('reviews').findOne({ _id: reviewId });
+
+        if (!review) {
+            return res.status(404).json({ message: 'Review not found' });
+        }
+
+        if (review.user_id.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'User not authorized' });
+        }
+
+        const updatedReview = await db.collection('reviews').findOneAndUpdate(
+            { _id: reviewId },
+            { $set: { 
+                rating: Number(rating), 
+                comment: comment,
+                date: new Date().toISOString() 
+            }},
+            { returnDocument: 'after' }
+        );
+
+        // Product ki rating dobara calculate karein
+        const productId = Number(req.params.productId);
+        const allReviews = await db.collection('reviews').find({ product_id: productId }).toArray();
+        const totalReviews = allReviews.length;
+        const avgRating = totalReviews > 0 
+            ? allReviews.reduce((acc, item) => item.rating + acc, 0) / totalReviews 
+            : 0;
+
+        await db.collection('products').updateOne(
+            { id: productId },
+            { $set: { reviews: totalReviews, rating: parseFloat(avgRating.toFixed(1)) } }
+        );
+        
+        res.json(updatedReview);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 export default router;
+
+

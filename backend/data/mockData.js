@@ -135,7 +135,7 @@ export const mockAdminUser = {
   stockNotifications: [],
 };
 
-export const mockUsers = [mockUser, mockAdminUser];
+export const mockUsers = [mockUser];
 
 export const mockOrders = [
     {

@@ -7,14 +7,15 @@ import { connectToDb, getDb } from './db.js';
 
 const importData = async () => {
   try {
-    const db = getDb(); // Ab connection pehle hi ho chuka hai
+    const db = getDb();
 
     // Purana data delete karein
     await db.collection('products').deleteMany();
     await db.collection('users').deleteMany();
     await db.collection('orders').deleteMany();
 
-    // Users ke password hash karein
+    // --- BADLAV START ---
+    // Step A: Normal users ko mockData se banayein (agar koi hai)
     const createdUsers = mockUsers.map(user => {
         return {
             ...user,
@@ -22,12 +23,37 @@ const importData = async () => {
         }
     });
     
-    // Naya data insert karein
-    await db.collection('users').insertMany(createdUsers);
-    await db.collection('products').insertMany(products);
-    await db.collection('orders').insertMany(mockOrders);
+    // Step B: Admin user ko .env file se banayein
+    const adminUser = {
+        name: 'Admin',
+        email: process.env.ADMIN_EMAIL,
+        password: bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10),
+        role: 'admin',
+        address: 'Store HQ',
+        phone: '0000000000',
+        cart: [],
+        wishlist: [],
+        orders: [],
+        loyaltyPoints: 0,
+        stockNotifications: [],
+    };
 
-    console.log('✅✅✅ Data Imported Successfully!');
+    // Step C: Dono tarah ke users ko database mein daalein
+    if (createdUsers.length > 0) {
+        await db.collection('users').insertMany(createdUsers);
+    }
+    await db.collection('users').insertOne(adminUser);
+    // --- BADLAV END ---
+
+    // Baaki ka data insert karein
+    await db.collection('products').insertMany(products);
+    
+    // Optional: Agar aap mock orders bhi daalna chahte hain
+    if (mockOrders.length > 0) {
+        await db.collection('orders').insertMany(mockOrders);
+    }
+
+    console.log('✅✅✅ Data with Secure Admin Imported Successfully!');
     process.exit();
   } catch (error) {
     console.error(`❌ Error during data import: ${error.message}`);
@@ -37,7 +63,7 @@ const importData = async () => {
 
 const destroyData = async () => {
   try {
-    const db = getDb(); // Ab connection pehle hi ho chuka hai
+    const db = getDb();
     
     await db.collection('products').deleteMany();
     await db.collection('users').deleteMany();
@@ -51,15 +77,11 @@ const destroyData = async () => {
   }
 };
 
-// --- BADLAV START ---
-// Ek main function banayein jo pehle connect karega, phir kaam karega
 const start = async () => {
     try {
-        // Step 1: Database se connect hone ka intezar karein
         await connectToDb();
         console.log("Database connected, proceeding with seeder...");
 
-        // Step 2: Ab check karein ki data import karna hai ya destroy
         if (process.argv[2] === '-d') {
             await destroyData();
         } else {
@@ -71,6 +93,4 @@ const start = async () => {
     }
 };
 
-// Main function ko call karein
 start();
-// --- BADLAV END ---
