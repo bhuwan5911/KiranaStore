@@ -3,8 +3,8 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto'; // Token generate karne ke liye
-import nodemailer from 'nodemailer'; // Email bhejne ke liye
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import { getDb } from '../db.js';
 import { ObjectId } from 'mongodb';
 
@@ -78,7 +78,6 @@ router.post('/register', async (req, res) => {
         };
         
         const result = await db.collection('users').insertOne(newUser);
-        
         const createdUser = await db.collection('users').findOne({ _id: result.insertedId });
         
         if (createdUser) {
@@ -95,7 +94,7 @@ router.post('/register', async (req, res) => {
 });
 
 
-// --- BADLAV START: FORGOT PASSWORD ROUTES ---
+// --- FORGOT PASSWORD ROUTES ---
 
 // @desc    Request password reset link
 // @route   POST /api/auth/forgot-password
@@ -107,11 +106,9 @@ router.post('/forgot-password', async (req, res) => {
         const user = await db.collection('users').findOne({ email });
 
         if (!user) {
-            // Security ke liye, hum yeh nahi batate ki email exist karta hai ya nahi
             return res.status(200).json({ message: 'If a user with that email exists, a password reset link has been sent.' });
         }
 
-        // Reset token banayein
         const resetToken = crypto.randomBytes(20).toString('hex');
         const passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
         const passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
@@ -121,32 +118,50 @@ router.post('/forgot-password', async (req, res) => {
             { $set: { passwordResetToken, passwordResetExpires } }
         );
 
-        // Frontend ka URL
         const resetUrl = `http://localhost:3000/#/reset-password/${resetToken}`;
         
-        // Nodemailer setup
         const transporter = nodemailer.createTransport({
-            service: 'Gmail', // Ya koi aur service
+            service: 'Gmail',
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS,
             },
         });
 
+        // --- BADLAV START: Sundar HTML Email Template ---
+        const emailHtml = `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
+                <div style="background-color: #FFA500; padding: 20px; text-align: center; color: white;">
+                    <h1 style="margin: 0; font-size: 24px;">Shophub Password Reset</h1>
+                </div>
+                <div style="padding: 30px;">
+                    <h2 style="font-size: 20px; color: #333;">Hello, ${user.name}!</h2>
+                    <p>We received a request to reset the password for your account.</p>
+                    <p>To reset your password, click the button below. This link will expire in <strong>10 minutes</strong>.</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${resetUrl}" style="background-color: #2D3436; color: white; padding: 15px 25px; text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: bold;">Reset Your Password</a>
+                    </div>
+                    <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                    <p style="font-size: 12px; color: #999;">If you're having trouble clicking the button, copy and paste this URL into your web browser: ${resetUrl}</p>
+                </div>
+                <div style="background-color: #f7f7f7; padding: 15px; text-align: center; font-size: 12px; color: #999;">
+                    &copy; 2025 Shophub. All Rights Reserved.
+                </div>
+            </div>
+        `;
+        // --- BADLAV END ---
+
         const mailOptions = {
             to: user.email,
             from: `Shophub <${process.env.EMAIL_USER}>`,
             subject: 'Shophub Password Reset Request',
-            text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n
-                   Please click on the following link, or paste this into your browser to complete the process:\n\n
-                   ${resetUrl}\n\n
-                   If you did not request this, please ignore this email and your password will remain unchanged.\n`
+            html: emailHtml, // Plain text ki jagah HTML use karein
         };
 
-        // Email bhejein
         await transporter.sendMail(mailOptions);
         
-        console.log(`Password reset link for ${user.email}: ${resetUrl}`); // Development ke liye link console mein dikhayein
+        console.log(`Password reset link for ${user.email}: ${resetUrl}`);
 
         res.status(200).json({ message: 'Password reset link sent to your email.' });
 
@@ -165,7 +180,6 @@ router.put('/reset-password/:token', async (req, res) => {
         const db = getDb();
         const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
-        // Token se user dhoondein aur check karein ki token expire to nahi hua
         const user = await db.collection('users').findOne({
             passwordResetToken: hashedToken,
             passwordResetExpires: { $gt: Date.now() },
@@ -175,7 +189,6 @@ router.put('/reset-password/:token', async (req, res) => {
             return res.status(400).json({ message: 'Password reset token is invalid or has expired.' });
         }
 
-        // Naya password set karein
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
@@ -195,6 +208,5 @@ router.put('/reset-password/:token', async (req, res) => {
     }
 });
 
-// --- BADLAV END ---
 
 export default router;

@@ -1,3 +1,5 @@
+// frontend/src/pages/AccountPage.js - Corrected Code
+
 import React from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -59,13 +61,14 @@ export const AccountPage: React.FC = () => {
           <div className="space-y-6">
             {orders.length > 0 ? orders.map((order, index) => (
               <div 
-                key={order.id} 
+                // FIX 1: Use the unique '_id' from MongoDB for the key
+                key={order._id} 
                 className="bg-white p-6 rounded-lg shadow-sm border animate-slide-in-up"
                 style={{ animationDelay: `${index * 100}ms`}}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <p className="text-sm text-text-secondary">Date: {order.date}</p>
+                    <p className="text-sm text-text-secondary">Date: {new Date(order.date).toLocaleDateString()}</p>
                   </div>
                   <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusBadgeClass(order.status)}`}>
                     {order.status}
@@ -90,8 +93,10 @@ export const AccountPage: React.FC = () => {
                 </div>
 
                 <div className="border-t pt-4 flex justify-between items-center">
-                   <p className="font-semibold text-lg text-text-primary">Order ID: <span className="font-bold text-primary">#{order.id}</span></p>
-                    <Link to={`/track-order/${order.id}`}>
+                    {/* FIX 2: Display the correct order '_id' */}
+                    <p className="font-semibold text-lg text-text-primary">Order ID: <span className="font-bold text-primary">#{order._id.slice(-6)}</span></p>
+                    {/* FIX 3: Link to the correct order '_id' */}
+                    <Link to={`/track-order/${order._id}`}>
                         <Button size="md" variant="ghost" className="border-2 border-primary hover:bg-primary/10">
                             <Package size={18} className="mr-2" /> Track Order
                         </Button>

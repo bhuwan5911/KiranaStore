@@ -1,71 +1,84 @@
 import React from 'react';
-
-// Simple chart component without external dependencies
-const mockData = [
-  { month: 'Jan', sales: 4000, orders: 240 },
-  { month: 'Feb', sales: 3000, orders: 139 },
-  { month: 'Mar', sales: 2000, orders: 980 },
-  { month: 'Apr', sales: 2780, orders: 390 },
-  { month: 'May', sales: 1890, orders: 480 },
-  { month: 'Jun', sales: 2390, orders: 380 },
-  { month: 'Jul', sales: 3490, orders: 430 },
-];
+import { 
+    BarChart, Bar, 
+    LineChart, Line, 
+    PieChart, Pie, Cell,
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
+} from 'recharts';
 
 interface SalesChartProps {
-  title?: string;
-  data?: Array<{
-    month: string;
-    sales: number;
-    orders: number;
-  }>;
+    data: { name: string; sales: number }[];
+    type: 'bar' | 'line' | 'pie'; // Naya prop chart type ke liye
 }
 
-export const SalesChart: React.FC<SalesChartProps> = ({ 
-  title = "Sales Overview", 
-  data = mockData 
-}) => {
-  const maxSales = Math.max(...data.map(d => d.sales));
-  const maxOrders = Math.max(...data.map(d => d.orders));
+// Pie chart ke liye alag-alag colors
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#FF5733'];
 
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
-      
-      {/* Simple bar chart representation */}
-      <div className="space-y-4">
-        {data.map((item, index) => (
-          <div key={index} className="flex items-center space-x-4">
-            <div className="w-12 text-sm text-gray-600">{item.month}</div>
-            <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-1">
-                <div 
-                  className="bg-blue-500 h-4 rounded"
-                  style={{ width: `${(item.sales / maxSales) * 100}%`, minWidth: '20px' }}
-                ></div>
-                <span className="text-xs text-gray-500">${item.sales}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div 
-                  className="bg-green-500 h-4 rounded"
-                  style={{ width: `${(item.orders / maxOrders) * 100}%`, minWidth: '20px' }}
-                ></div>
-                <span className="text-xs text-gray-500">{item.orders} orders</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+export const SalesChart: React.FC<SalesChartProps> = ({ data, type }) => {
 
-      <div className="flex items-center justify-center mt-6 space-x-6">
-        <div className="flex items-center">
-          <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600">Sales ($)</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-          <span className="text-sm text-gray-600">Orders</span>
-        </div>
-      </div>
-    </div>
-  );
+    const renderChart = () => {
+        switch (type) {
+            case 'line':
+                return (
+                    <LineChart data={data} margin={{ top: 5, right: 20, left: -15, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid #ddd' }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Sales']} />
+                        <Legend wrapperStyle={{ fontSize: '14px' }} />
+                        <Line type="monotone" dataKey="sales" stroke="#FFA500" strokeWidth={2} activeDot={{ r: 8 }} name="Sales" />
+                    </LineChart>
+                );
+            case 'pie':
+                // Pie chart ke liye sirf woh data lein jismein sales 0 se zyada ho
+                const pieData = data.filter(item => item.sales > 0);
+                if (pieData.length === 0) {
+                    return <p className="text-center text-gray-500 h-full flex items-center justify-center">No sales data to display in Pie Chart for this period.</p>;
+                }
+                return (
+                    <PieChart>
+                        <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={120}
+                            fill="#8884d8"
+                            dataKey="sales"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                            {pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Sales']} />
+                        <Legend wrapperStyle={{ fontSize: '14px' }} />
+                    </PieChart>
+                );
+            case 'bar':
+            default:
+                return (
+                    <BarChart data={data} margin={{ top: 5, right: 20, left: -15, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                            cursor={{ fill: 'rgba(255, 165, 0, 0.1)' }}
+                            contentStyle={{ borderRadius: '10px', border: '1px solid #ddd' }}
+                            formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Sales']}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '14px' }} />
+                        <Bar dataKey="sales" fill="#FFA500" radius={[4, 4, 0, 0]} name="Sales" />
+                    </BarChart>
+                );
+        }
+    };
+
+    return (
+        <ResponsiveContainer width="100%" height="100%">
+            {renderChart()}
+        </ResponsiveContainer>
+    );
 };
+

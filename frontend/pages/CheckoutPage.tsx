@@ -1,30 +1,40 @@
-import React, { useState, useMemo } from 'react';
+// CheckoutPage.js - Corrected Code
+
+import React, { useState, useMemo, useEffect } from 'react'; // <-- 1. useEffect ko import karein
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-// FIX: Import Loader for loading spinner
 import { Loader } from 'lucide-react';
 
 export const CheckoutPage: React.FC = () => {
-  // FIX: Destructure finalTotal from context for accurate calculations
   const { cart, cartTotal, user, addToast, placeOrder, redeemPoints, finalTotal } = useAppContext();
   const navigate = useNavigate();
   const [isOrderPlaced, setIsOrderPlaced] = useState(false);
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
-  // FIX: Add isLoading state to manage UI during async operations
   const [isLoading, setIsLoading] = useState(false);
 
-  const pointsValue = useMemo(() => Math.floor(pointsToRedeem / 100), [pointsToRedeem]); // 100 points = 1 Rupee
-  // FIX: Calculate final total after loyalty points discount
+  const pointsValue = useMemo(() => Math.floor(pointsToRedeem / 100), [pointsToRedeem]);
   const finalTotalWithDiscount = useMemo(() => Math.max(0, finalTotal - pointsValue), [finalTotal, pointsValue]);
-  
+
+  // FIX START: Purane 'if' condition ko 'useEffect' se replace karein
+  // Yeh error ko theek karega
+  useEffect(() => {
+    // Agar order place nahi hua hai aur cart khali ho gaya, to user ko cart page par wapas bhejein
+    if (cart.length === 0 && !isOrderPlaced) {
+      navigate('/cart');
+    }
+  }, [cart, isOrderPlaced, navigate]); // Yeh effect tab chalega jab in values me badlav hoga
+  // FIX END
+
+  /*
+  // YEH PURANA CODE THA JISSE ERROR AA RAHA THA (Ise हटा दें)
   if (cart.length === 0 && !isOrderPlaced) {
     navigate('/cart');
     return null;
   }
-  
-  // FIX: Convert to async function to handle promises from placeOrder and redeemPoints
+  */
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -42,7 +52,6 @@ export const CheckoutPage: React.FC = () => {
 
   const handlePointsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = Number(e.target.value);
-      // FIX: Use finalTotal from context for validation to ensure total doesn't go below zero
       if (user && value <= user.loyaltyPoints && (finalTotal - (value / 100)) >= 0) {
         setPointsToRedeem(value);
       }
@@ -79,7 +88,6 @@ export const CheckoutPage: React.FC = () => {
               <h2 className="text-2xl font-semibold mb-4">Payment Method</h2>
               <div className="space-y-3 p-4 border rounded-lg">
                 <label className="flex items-center"><input type="radio" name="payment" className="mr-2" defaultChecked/> Cash on Delivery</label>
-
                 <label className="flex items-center text-gray-400"><input type="radio" name="payment" className="mr-2" disabled/> Credit/Debit Card (Coming Soon)</label>
               </div>
             </div>
@@ -129,6 +137,7 @@ export const CheckoutPage: React.FC = () => {
               <span>Total</span>
               <span>₹{finalTotalWithDiscount.toFixed(2)}</span>
             </div>
+            {/* // FIX: Button should be outside the form if it's not submitting it directly. Here it has its own onClick. */}
             <Button size="lg" className="w-full mt-6" onClick={handlePlaceOrder} disabled={isLoading}>
               {isLoading ? <Loader className="animate-spin" /> : 'Place Order'}
             </Button>

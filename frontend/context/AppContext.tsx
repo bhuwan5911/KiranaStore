@@ -1,8 +1,11 @@
+// frontend/src/context/AppContext.tsx - UPDATED WITH DEBUGGING
+
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { CartItem, Product, User, ToastMessage, Review, Order, Category } from '../types';
 
 const API_URL = 'http://localhost:5000/api';
 
+// This helper function is correct, no changes needed here.
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
     const headers: HeadersInit = {
@@ -34,7 +37,7 @@ interface AppContextType {
   products: Product[];
   categories: Category[];
   orders: Order[];
-  users: User[]; // For admin
+  users: User[];
   comparisonList: Product[];
   isOffline: boolean;
   showOfflineModal: boolean;
@@ -74,6 +77,7 @@ interface AppContextType {
   redeemPoints: (points: number) => Promise<void>;
   subscribeToStock: (productId: number) => Promise<void>;
   isSubscribedToStock: (productId: number) => boolean;
+  bulkUpdateStock: (productIds: number[], value: number, operation: 'set' | 'add') => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -93,7 +97,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [showOfflineModal, setShowOfflineModal] = useState(false);
   
   const addToast = useCallback((message: string, type: ToastMessage['type']) => {
-    const id = Date.now();
+    const id = Date.now() + Math.random();
     setToasts(prevToasts => [...prevToasts, { id, message, type }]);
   }, []);
 
@@ -138,14 +142,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const fetchUserCart = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/cart`); if (res.ok) setCart(await res.json()); } catch (e) { console.error(e); } }, []);
   const fetchUserWishlist = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/wishlist`); if (res.ok) setWishlist(await res.json()); } catch (e) { console.error(e); } }, []);
   const fetchUserOrders = useCallback(async () => { try { const res = await fetchWithAuth(`${API_URL}/users/orders`); if (res.ok) setOrders(await res.json()); } catch(e) { console.error(e) } }, []);
-  const fetchAdminData = useCallback(async () => { try { const [usersRes, ordersRes] = await Promise.all([ fetchWithAuth(`${API_URL}/admin/users`), fetchWithAuth(`${API_URL}/admin/orders`) ]); if(usersRes.ok) setUsers(await usersRes.json()); if(ordersRes.ok) setOrders(await ordersRes.json()); } catch(e) { console.error(e); } }, []);
+  
+  // ✅ FIX: DEBUGGING VERSION OF fetchAdminData
+  const fetchAdminData = useCallback(async () => { 
+    try { 
+        console.log("Attempting to fetch admin data..."); // Debug log 1
+        const [usersRes, ordersRes] = await Promise.all([ 
+            fetchWithAuth(`${API_URL}/admin/users`), 
+            fetchWithAuth(`${API_URL}/admin/orders`) 
+        ]); 
+        
+        console.log("Admin Users Response Status:", usersRes.status); // Debug log 2
+        console.log("Admin Orders Response Status:", ordersRes.status); // Debug log 3
+
+        if(usersRes.ok) {
+            setUsers(await usersRes.json());
+        } else {
+            console.error("Failed to fetch users:", await usersRes.text()); // This will show the error
+        }
+
+        if(ordersRes.ok) {
+            setOrders(await ordersRes.json());
+        } else {
+             console.error("Failed to fetch orders:", await ordersRes.text()); // This will show the error
+        }
+    } catch(e) { 
+        console.error("Critical error in fetchAdminData:", e); 
+    } 
+  }, []);
 
   const fetchUserProfile = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return; 
+    }
     try {
         const res = await fetchWithAuth(`${API_URL}/users/profile`);
         if (!res.ok) {
-            logout();
-            return;
+            throw new Error('Failed to fetch profile');
         }
         const userData = await res.json();
         setUser(userData);
@@ -163,13 +197,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [logout, fetchUserCart, fetchUserWishlist, fetchUserOrders, fetchAdminData]);
 
   useEffect(() => {
-    const loadUser = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        await fetchUserProfile();
-      }
-    };
-    loadUser();
+    fetchUserProfile();
   }, [fetchUserProfile]);
   
   useEffect(() => {
@@ -230,11 +258,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const removeFromCart = async (productId: number) => {
     if (!user) return;
     try {
-         const res = await fetchWithAuth(`${API_URL}/users/cart/${productId}`, { method: 'DELETE' });
-         const data = await res.json();
-         if (!res.ok) throw new Error(data.message);
-         setCart(data);
-         addToast('Item removed from cart.', 'info');
+        const res = await fetchWithAuth(`${API_URL}/users/cart/${productId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        setCart(data);
+        addToast('Item removed from cart.', 'info');
     } catch (e: any) {
         addToast(e.message || 'Could not remove item.', 'error');
     }
@@ -338,8 +366,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!res.ok) {
             return { error: data.message, outOfStockItems: data.outOfStockItems };
         }
-        setOrders(prev => [data, ...prev]);
-        setCart([]);
+        await fetchUserProfile();
         return { error: null };
     } catch(e: any) {
         return { error: e.message || "Failed to place order." };
@@ -403,8 +430,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // --- BADLAV START ---
-  // Naya editReview function add kiya gaya hai
   const editReview = async (productId: number, reviewId: any, newRating: number, newComment: string): Promise<Review | null> => {
     try {
         const res = await fetchWithAuth(`${API_URL}/products/${productId}/reviews/${reviewId}`, {
@@ -417,14 +442,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         const updatedReview = await res.json();
         addToast('Review updated successfully', 'success');
-        await fetchProducts(); // Product rating update ke liye products refetch karein
+        await fetchProducts();
         return updatedReview;
     } catch (e: any) {
         addToast(e.message || "Failed to update review.", 'error');
         return null;
     }
   };
-  // --- BADLAV END ---
 
   const redeemPoints = async (pointsToRedeem: number) => {
       if (user && user.loyaltyPoints >= pointsToRedeem) {
@@ -495,8 +519,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
           const res = await fetchWithAuth(`${API_URL}/admin/products/${productId}`, { method: 'DELETE' });
           if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.message);
+              const data = await res.json();
+              throw new Error(data.message);
           }
           setProducts(prev => prev.filter(p => p.id !== productId));
           addToast('Product deleted.', 'info');
@@ -518,6 +542,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (e: any) {
           addToast(e.message || "Failed to update order status.", 'error');
       }
+  };
+
+  const bulkUpdateStock = async (productIds: number[], value: number, operation: 'set' | 'add') => {
+    try {
+      const res = await fetchWithAuth(`${API_URL}/admin/products/stock`, {
+        method: 'PUT',
+        body: JSON.stringify({ productIds, value, operation })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to update stock.');
+      }
+
+      await fetchProducts();
+      addToast(data.message || 'Stock updated successfully!', 'success');
+
+    } catch (e: any) {
+      addToast(e.message || 'An error occurred while updating stock.', 'error');
+    }
   };
 
   const toggleCompare = (product: Product) => {
@@ -544,7 +588,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addRecentlyViewed, getProductById, updateUserProfile, addProduct, addProductsBulk, updateProduct, deleteProduct,
         updateOrderStatus, placeOrder, toggleCompare, isInCompare, clearCompare,
         showOfflineModal, closeOfflineModal, fetchReviewsForProduct, addReview, deleteReview, editReview, redeemPoints,
-        subscribeToStock, isSubscribedToStock
+        subscribeToStock, isSubscribedToStock,
+        bulkUpdateStock
       }}
     >
       {children}

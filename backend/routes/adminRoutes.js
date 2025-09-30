@@ -1,31 +1,24 @@
 import express from 'express';
-// --- BADLAV: connectToDb ki jagah getDb ko import karein ---
 import { getDb } from '../db.js';
 import { ObjectId } from 'mongodb';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Sabhi routes ko protect karein
-router.use(protect, admin);
+// ✅ FIX: Global middleware ko yahan se hata diya gaya hai
+// router.use(protect, admin); // <-- REMOVED THIS LINE
 
 // --- Product Management ---
 
-router.post('/products', async (req, res) => {
+// ✅ FIX: Middleware har route par alag se lagaya gaya hai
+router.post('/products', protect, admin, async (req, res) => {
     const { name, category, price, stock, description, imageUrl, relatedImages } = req.body;
     try {
-        // --- BADLAV: getDb() ka istemal karein ---
         const db = getDb();
         const newProduct = {
-            name,
-            category,
-            price: Number(price),
-            stock: Number(stock),
-            description,
-            imageUrl,
-            relatedImages: relatedImages || [],
-            rating: 0,
-            reviews: 0,
+            name, category, price: Number(price), stock: Number(stock),
+            description, imageUrl, relatedImages: relatedImages || [],
+            rating: 0, reviews: 0,
             id: (await db.collection('products').countDocuments()) + 1, 
         };
         const result = await db.collection('products').insertOne(newProduct);
@@ -36,10 +29,28 @@ router.post('/products', async (req, res) => {
     }
 });
 
-// Baaki sabhi functions mein bhi `connectToDb` ko `getDb` se replace kar diya gaya hai...
-// (Neeche poora code theek karke diya gaya hai)
+// ✅ FIX: Middleware har route par alag se lagaya gaya hai
+router.put('/products/stock', protect, admin, async (req, res) => {
+    const { productIds, value, operation } = req.body;
+    if (!Array.isArray(productIds) || productIds.length === 0 || typeof value !== 'number' || !['set', 'add'].includes(operation)) {
+        return res.status(400).json({ message: 'Invalid input data.' });
+    }
+    if (operation === 'set' && value < 0) {
+        return res.status(400).json({ message: 'Stock value cannot be negative when setting.' });
+    }
+    try {
+        const db = getDb();
+        let updateQuery = operation === 'set' ? { $set: { stock: value } } : { $inc: { stock: value } };
+        const result = await db.collection('products').updateMany({ id: { $in: productIds } }, updateQuery);
+        res.json({ message: `${result.modifiedCount} products' stock updated successfully.` });
+    } catch (error) {
+        console.error("Bulk stock update error:", error);
+        res.status(500).json({ message: 'Error updating product stock', error: error.message });
+    }
+});
 
-router.put('/products/:id', async (req, res) => {
+// ✅ FIX: Middleware har route par alag se lagaya gaya hai
+router.put('/products/:id', protect, admin, async (req, res) => {
     const productId = Number(req.params.id);
     const { name, category, price, stock, description, imageUrl, relatedImages } = req.body;
     try {
@@ -59,7 +70,8 @@ router.put('/products/:id', async (req, res) => {
     }
 });
 
-router.delete('/products/:id', async (req, res) => {
+// ✅ FIX: Middleware har route par alag se lagaya gaya hai
+router.delete('/products/:id', protect, admin, async (req, res) => {
     const productId = Number(req.params.id);
     try {
         const db = getDb();
@@ -76,7 +88,8 @@ router.delete('/products/:id', async (req, res) => {
 
 // --- Order Management ---
 
-router.get('/orders', async (req, res) => {
+// ✅ FIX: Middleware har route par alag se lagaya gaya hai
+router.get('/orders', protect, admin, async (req, res) => {
     try {
         const db = getDb();
         const orders = await db.collection('orders').find({}).sort({ date: -1 }).toArray();
@@ -86,8 +99,8 @@ router.get('/orders', async (req, res) => {
     }
 });
 
-router.put('/orders/:id/status', async (req, res) => {
-    // Note: MongoDB _id is a string, not a number
+// ✅ FIX: Middleware har route par alag se lagaya gaya hai
+router.put('/orders/:id/status', protect, admin, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     try {
@@ -107,10 +120,10 @@ router.put('/orders/:id/status', async (req, res) => {
     }
 });
 
-
 // --- User Management ---
 
-router.get('/users', async (req, res) => {
+// ✅ FIX: Middleware har route par alag se lagaya gaya hai
+router.get('/users', protect, admin, async (req, res) => {
     try {
         const db = getDb();
         const users = await db.collection('users').find({}, { projection: { password: 0 } }).toArray();
@@ -121,3 +134,4 @@ router.get('/users', async (req, res) => {
 });
 
 export default router;
+

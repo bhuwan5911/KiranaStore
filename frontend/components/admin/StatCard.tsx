@@ -1,35 +1,30 @@
 import React from 'react';
 
-// BADLAV: icon ka type 'React.ReactNode' kar diya gaya hai taaki woh bana-banaya icon le sake
 interface StatCardProps {
   title: string;
   value: string | number;
-  icon: React.ReactNode; 
-  color: string;
-  gradient: string;
+  icon: React.ReactNode;
+  change?: string;
+  changeType?: 'positive' | 'negative';
 }
 
-export const StatCard: React.FC<StatCardProps> = ({
-  title,
-  value,
-  icon, // BADLAV: Ab hum ise rename nahi karenge
-  color,
-  gradient
-}) => {
+export const StatCard: React.FC<StatCardProps> = ({ title, value, icon, change, changeType }) => {
   return (
-    // BADLAV: 'gradient' class ka istemal kiya gaya hai
-    <div className={`p-6 rounded-2xl shadow-soft ${gradient}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-text-secondary">{title}</p>
-          <p className="text-3xl font-bold text-text-primary mt-1">{value}</p>
+    <div className="bg-white rounded-xl shadow-soft p-5 transition-all hover:shadow-lg hover:-translate-y-1">
+      <div className="flex justify-between items-start">
+        <div className="flex-grow">
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
+          {change && (
+             <p className={`text-xs mt-1 font-semibold ${changeType === 'positive' ? 'text-green-500' : 'text-red-500'}`}>
+               {change}
+             </p>
+          )}
         </div>
-        {/* BADLAV: 'color' class ka istemal kiya gaya hai aur icon ko direct render kiya gaya hai */}
-        <div className={`p-4 rounded-full ${color}`}>
+        <div className="bg-primary/10 text-primary p-3 rounded-full">
           {icon}
         </div>
       </div>
     </div>
   );
 };
-
