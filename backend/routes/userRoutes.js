@@ -1,9 +1,11 @@
-// backend/routes/userRoutes.js - FINAL CORRECTED VERSION
+// backend/routes/userRoutes.js - UPDATED
 
 import express from 'express';
 import { getDb } from '../db.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { ObjectId } from 'mongodb';
+//  FIX 1: Naye email function ko import karein
+import { sendOrderConfirmationEmail } from '../utils/sendOrderConfirmationEmail.js';
 
 const router = express.Router();
 
@@ -16,7 +18,6 @@ router.get('/cart', protect, (req, res) => {
         res.status(500).json({ message: 'Error fetching cart', error: error.message });
     }
 });
-
 router.post('/cart', protect, async (req, res) => {
     const productId = Number(req.body.productId);
     const quantity = Number(req.body.quantity) || 1;
@@ -37,7 +38,6 @@ router.post('/cart', protect, async (req, res) => {
         res.status(500).json({ message: 'Error adding to cart', error: error.message });
     }
 });
-
 router.delete('/cart/:productId', protect, async (req, res) => {
     const productId = Number(req.params.productId);
     try {
@@ -50,7 +50,6 @@ router.delete('/cart/:productId', protect, async (req, res) => {
         res.status(500).json({ message: 'Error removing from cart', error: error.message });
     }
 });
-
 router.put('/cart', protect, async (req, res) => {
     const { productId, quantity } = req.body;
     if (typeof productId !== 'number' || typeof quantity !== 'number' || quantity <= 0) {
@@ -86,6 +85,7 @@ router.get('/wishlist', protect, async (req, res) => {
     }
 });
 
+// ✅ FIX 2: '/orders' route ko update kiya gaya hai
 router.post('/orders', protect, async (req, res) => {
     const { cart } = req.body;
     try {
@@ -111,10 +111,22 @@ router.post('/orders', protect, async (req, res) => {
             status: 'Pending',
         };
 
-        await db.collection('orders').insertOne(newOrder);
+        const result = await db.collection('orders').insertOne(newOrder);
+        // Poora order object lein, jismein MongoDB se mili _id bhi ho
+        const savedOrder = { ...newOrder, _id: result.insertedId };
+        
         await db.collection('users').updateOne({ _id: new ObjectId(req.user._id) }, { $set: { cart: [] } });
 
-        res.status(201).json(newOrder);
+        // Order save hone ke baad, email bhejein
+        try {
+            await sendOrderConfirmationEmail(req.user.email, req.user.name, savedOrder);
+        } catch (emailError) {
+            // Agar email fail ho, toh bas console mein error log karein,
+            // process ko rokein nahi. Customer ko order confirmation milna chahiye.
+            console.error("Failed to send order confirmation email:", emailError);
+        }
+
+        res.status(201).json(savedOrder);
     } catch (error) {
         res.status(500).json({ message: 'Failed to place order', error: error.message });
     }
@@ -171,3 +183,4 @@ router.put('/profile', protect, async (req, res) => {
 });
 
 export default router;
+
