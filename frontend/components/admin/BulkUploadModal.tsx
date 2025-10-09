@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import Papa from 'papaparse';
 import { useAppContext } from '../../context/AppContext';
 import { Button } from '../ui/Button';
-import { X, UploadCloud } from 'lucide-react';
+import { X, UploadCloud, Loader2 } from 'lucide-react';
 
 interface BulkUploadModalProps {
     isOpen: boolean;
@@ -15,55 +14,87 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({ isOpen, onClos
     const [isUploading, setIsUploading] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setFile(e.target.files[0]);
+        if (e.target.files && e.target.files.length > 0) {
+            if (e.target.files[0].type === 'text/csv') {
+                setFile(e.target.files[0]);
+            } else {
+                addToast('Please select a valid .csv file.', 'error');
+            }
         }
     };
 
-    const handleUpload = () => {
+    // ✅ FIX: handleUpload function ab JSON nahi, balki poori file bhejega
+    const handleUpload = async () => {
         if (!file) {
-            addToast('Please select a file first.', 'error');
+            addToast('Please select a CSV file first.', 'error');
             return;
         }
         setIsUploading(true);
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                const { success, message } = await addProductsBulk(results.data);
-                if (success) {
-                    addToast(message, 'success');
-                    onClose();
-                } else {
-                    addToast(message, 'error');
-                }
-                setIsUploading(false);
-            },
-            error: (error) => {
-                addToast(`CSV Parse Error: ${error.message}`, 'error');
-                setIsUploading(false);
-            }
-        });
+
+        // FormData object banayein
+        const formData = new FormData();
+        // File ko append karein. 'file' key backend se match honi chahiye.
+        formData.append('file', file);
+
+        // AppContext mein naye function ko call karein
+        const { success, message } = await addProductsBulk(formData);
+
+        if (success) {
+            addToast(message, 'success');
+            handleClose();
+        } else {
+            addToast(message, 'error');
+        }
+
+        setIsUploading(false);
+    };
+
+    const handleClose = () => {
+        setFile(null);
+        setIsUploading(false);
+        onClose();
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[999]">
+            <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md animate-fade-in-up">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Bulk Add Products</h2>
-                    <button onClick={onClose}><X /></button>
+                    <h2 className="text-2xl font-bold text-gray-800">Bulk Add Products</h2>
+                    <button onClick={handleClose} className="text-gray-500 hover:text-gray-800"><X /></button>
                 </div>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <UploadCloud size={48} className="mx-auto text-gray-400" />
-                    <input type="file" accept=".csv" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 mt-4"/>
-                    <p className="mt-2 text-xs text-gray-500">Upload a CSV file with headers: name, category, price, stock, description, imageUrl</p>
+                
+                <div 
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center flex flex-col items-center justify-center bg-gray-50"
+                >
+                    <UploadCloud size={48} className="mx-auto text-gray-400 mb-4" />
+                    
+                    <label htmlFor="csv-upload" className="cursor-pointer font-semibold text-primary hover:text-primary/80">
+                        Choose file
+                        <input id="csv-upload" type="file" accept=".csv" onChange={handleFileChange} className="hidden"/>
+                    </label>
+                    
+                    {file ? (
+                        <p className="mt-2 font-medium text-gray-600 text-sm">{file.name}</p>
+                    ) : (
+                        <p className="mt-2 text-sm text-gray-500">or drag and drop CSV file</p>
+                    )}
+
+                    <p className="mt-4 text-xs text-gray-500">
+                        Required headers: name, category, price, stock, description, imageUrl
+                    </p>
                 </div>
+                
                 <div className="flex justify-end gap-4 mt-6">
-                    <Button variant="ghost" onClick={onClose}>Cancel</Button>
+                    <Button variant="ghost" onClick={handleClose}>Cancel</Button>
                     <Button onClick={handleUpload} disabled={isUploading || !file}>
-                        {isUploading ? 'Uploading...' : 'Upload Products'}
+                        {isUploading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Uploading...
+                            </>
+                        ) : 'Upload Products'}
                     </Button>
                 </div>
             </div>
