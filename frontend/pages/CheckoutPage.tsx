@@ -1,99 +1,156 @@
-// CheckoutPage.js - Corrected Code
-
-import React, { useState, useMemo, useEffect } from 'react'; // <-- 1. useEffect ko import karein
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Loader } from 'lucide-react';
+import ShophubLogo from '/favicon.svg';
+
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
 
 export const CheckoutPage: React.FC = () => {
-  const { cart, cartTotal, user, addToast, placeOrder, redeemPoints, finalTotal } = useAppContext();
+  // ✅ FIX 1: 'placeOrder' ko yahan se hata dein, kyunki ab iski zaroorat nahi
+  const { cart, user, addToast, finalTotal } = useAppContext();
   const navigate = useNavigate();
-  const [isOrderPlaced, setIsOrderPlaced] = useState(false);
-  const [pointsToRedeem, setPointsToRedeem] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState(user?.address || '');
 
-  const pointsValue = useMemo(() => Math.floor(pointsToRedeem / 100), [pointsToRedeem]);
-  const finalTotalWithDiscount = useMemo(() => Math.max(0, finalTotal - pointsValue), [finalTotal, pointsValue]);
-
-  // FIX START: Purane 'if' condition ko 'useEffect' se replace karein
-  // Yeh error ko theek karega
   useEffect(() => {
-    // Agar order place nahi hua hai aur cart khali ho gaya, to user ko cart page par wapas bhejein
-    if (cart.length === 0 && !isOrderPlaced) {
+    if (cart.length === 0 && !isProcessing) {
+      addToast("Your cart is empty.", "info");
       navigate('/cart');
     }
-  }, [cart, isOrderPlaced, navigate]); // Yeh effect tab chalega jab in values me badlav hoga
-  // FIX END
+  }, [cart, navigate, addToast, isProcessing]);
 
-  /*
-  // YEH PURANA CODE THA JISSE ERROR AA RAHA THA (Ise हटा दें)
-  if (cart.length === 0 && !isOrderPlaced) {
-    navigate('/cart');
-    return null;
-  }
-  */
-
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    const { error } = await placeOrder();
-    
-    if (!error) {
-        await redeemPoints(pointsToRedeem);
-        addToast('Order placed successfully!', 'success');
-        setIsOrderPlaced(true);
+  const handlePayment = async () => {
+    if (!user) {
+        addToast('Please login to proceed.', 'error');
+        navigate('/login');
+        return;
     }
-    // Error toast is handled within placeOrder
-    setIsLoading(false);
-  };
+    if (!shippingAddress.trim()) {
+        addToast('Please enter a valid shipping address.', 'error');
+        return;
+    }
+    
+    setIsProcessing(true);
 
-  const handlePointsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = Number(e.target.value);
-      if (user && value <= user.loyaltyPoints && (finalTotal - (value / 100)) >= 0) {
-        setPointsToRedeem(value);
-      }
-  };
+    try {
+        const token = localStorage.getItem('token');
+        const orderRes = await fetch('http://localhost:5000/api/payment/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ amount: finalTotal }),
+        });
+        
+        if (!orderRes.ok) {
+            const err = await orderRes.json();
+            throw new Error(err.message || 'Failed to create Razorpay order.');
+        }
+        
+        const orderData = await orderRes.json();
+        
+        const options = {
+            key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+            amount: orderData.amount,
+            currency: "INR",
+            name: "Shophub",
+            description: "Kirana Store Transaction",
+            image: '/favicon.svg',
+            order_id: orderData.id,
+            
+            handler: async function (response: any) {
+                const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = response;
 
-  if (isOrderPlaced) {
-    return (
-      <div className="text-center py-16 bg-green-50 rounded-lg">
-        <h2 className="text-3xl font-bold text-primary mb-4">Thank You!</h2>
-        <p className="text-xl text-text-primary mb-2">Your order has been placed successfully.</p>
-        <p className="text-text-secondary mb-6">You will receive a confirmation email shortly.</p>
-        <Button onClick={() => navigate('/')}>Continue Shopping</Button>
-      </div>
-    );
-  }
+                // --- Payment ko backend par verify karein (Backend hi ab order create karega) ---
+                const verifyRes = await fetch('http://localhost:5000/api/payment/verify', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        razorpay_payment_id, 
+                        razorpay_order_id, 
+                        razorpay_signature,
+                        cart,
+                        shippingAddress
+                    }),
+                });
+                
+                if (!verifyRes.ok) throw new Error("Payment verification failed.");
+                
+                // ✅ FIX 2: 'placeOrder' call ko yahan se hata diya gaya hai
+                addToast('Order placed successfully!', 'success');
+                navigate('/account'); // User ko account page par bhej dein
+            },
+            prefill: {
+                name: user.name,
+                email: user.email,
+                contact: user.phone
+            },
+            notes: {
+                address: shippingAddress
+            },
+            theme: {
+                color: "#FFA500"
+            }
+        };
+        
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        
+        rzp.on('payment.failed', function (response: any) {
+            addToast(`Payment failed: ${response.error.description}`, 'error');
+            setIsProcessing(false);
+        });
+
+    } catch (error: any) {
+        addToast(error.message || 'An error occurred during payment.', 'error');
+        setIsProcessing(false);
+    }
+  };
 
   return (
     <div>
       <h1 className="text-3xl font-bold mb-8 text-center">Checkout</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        <form onSubmit={handlePlaceOrder} className="space-y-6">
+        <div className="space-y-6">
             <div>
               <h2 className="text-2xl font-semibold mb-4">Shipping Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input label="Full Name" id="name" type="text" defaultValue={user?.name} required />
-                  <Input label="Email Address" id="email" type="email" defaultValue={user?.email} required />
-                  <Input label="Phone Number" id="phone" type="tel" defaultValue={user?.phone} required />
+                  <Input label="Full Name" id="name" type="text" value={user?.name || ''} required disabled/>
+                  <Input label="Email Address" id="email" type="email" value={user?.email || ''} required disabled/>
+                  <Input label="Phone Number" id="phone" type="tel" value={user?.phone || ''} required disabled/>
                   <div className="sm:col-span-2">
-                    <Input label="Shipping Address" id="address" type="text" defaultValue={user?.address} required />
+                    <Input 
+                        label="Shipping Address" 
+                        id="address" 
+                        type="text" 
+                        value={shippingAddress}
+                        onChange={(e) => setShippingAddress(e.target.value)}
+                        placeholder="Enter your full delivery address"
+                        required 
+                    />
                   </div>
               </div>
             </div>
             <div>
               <h2 className="text-2xl font-semibold mb-4">Payment Method</h2>
-              <div className="space-y-3 p-4 border rounded-lg">
-                <label className="flex items-center"><input type="radio" name="payment" className="mr-2" defaultChecked/> Cash on Delivery</label>
-                <label className="flex items-center text-gray-400"><input type="radio" name="payment" className="mr-2" disabled/> Credit/Debit Card (Coming Soon)</label>
+              <div className="space-y-3 p-4 border rounded-lg bg-white shadow-sm">
+                <label className="flex items-center"><input type="radio" name="payment" className="mr-2" defaultChecked/> Online Payment (Razorpay)</label>
               </div>
             </div>
-        </form>
+        </div>
         
-        <div className="bg-neutral p-6 rounded-lg shadow-sm h-fit">
+        <div className="bg-white p-6 rounded-lg shadow-sm h-fit">
           <h2 className="text-xl font-semibold mb-4">Your Order</h2>
           <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
             {cart.map(item => (
@@ -106,40 +163,14 @@ export const CheckoutPage: React.FC = () => {
                 </div>
             ))}
           </div>
-
-          {user && user.loyaltyPoints > 0 && (
-            <div className="border-t mt-4 pt-4">
-                <h3 className="text-lg font-semibold mb-2">Redeem Loyalty Points</h3>
-                <p className="text-sm text-text-secondary mb-2">You have {user.loyaltyPoints} points. (100 points = ₹1)</p>
-                <div className="flex flex-col">
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max={Math.min(user.loyaltyPoints, cartTotal * 100)}
-                        step="100"
-                        value={pointsToRedeem}
-                        onChange={handlePointsChange}
-                        className="w-full"
-                    />
-                    <div className="flex justify-between text-sm">
-                        <span>0</span>
-                        <span>{Math.min(user.loyaltyPoints, cartTotal * 100)}</span>
-                    </div>
-                </div>
-                <p className="text-center font-semibold mt-2">Redeeming {pointsToRedeem} points for a discount of ₹{pointsValue.toFixed(2)}</p>
-            </div>
-          )}
-
           <div className="border-t mt-4 pt-4 space-y-2">
-            <div className="flex justify-between"><span>Subtotal</span><span>₹{finalTotal.toFixed(2)}</span></div>
-            {pointsValue > 0 && <div className="flex justify-between text-green-600"><span>Loyalty Discount</span><span>- ₹{pointsValue.toFixed(2)}</span></div>}
+            <div className="flex justify-between"><span>Subtotal</span><span>₹{cart.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2)}</span></div>
             <div className="flex justify-between font-bold text-lg">
               <span>Total</span>
-              <span>₹{finalTotalWithDiscount.toFixed(2)}</span>
+              <span>₹{finalTotal.toFixed(2)}</span>
             </div>
-            {/* // FIX: Button should be outside the form if it's not submitting it directly. Here it has its own onClick. */}
-            <Button size="lg" className="w-full mt-6" onClick={handlePlaceOrder} disabled={isLoading}>
-              {isLoading ? <Loader className="animate-spin" /> : 'Place Order'}
+            <Button size="lg" className="w-full mt-6" onClick={handlePayment} disabled={isProcessing}>
+              {isProcessing ? <Loader className="animate-spin" /> : `Pay ₹${finalTotal.toFixed(2)}`}
             </Button>
           </div>
         </div>

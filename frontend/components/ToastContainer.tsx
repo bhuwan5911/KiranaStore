@@ -1,29 +1,39 @@
-import React from 'react';
-import { useAppContext } from '../context/AppContext';
-import { Toast } from './ui/Toast';
+// src/components/ToastContainer.tsx
+import React, { useState, useEffect } from "react";
+import { Toast } from "./ui/Toast";
 
-export const ToastContainer: React.FC = () => {
-    const { toasts, removeToast } = useAppContext();
+interface ToastMessage {
+  id: number;
+  message: string;
+  type: "success" | "error" | "info" | "warning";
+}
 
-    if (!toasts.length) {
-        return null;
-    }
+interface ToastContainerProps {
+  setAddToast: (fn: (message: string, type: ToastMessage["type"]) => void) => void;
+}
 
-    return (
-        // ✅ FIX: z-index badhaya gaya hai aur positioning ko mobile ke liye adjust kiya gaya hai.
-        // 'top-24 sm:top-20' -> Mobile par header ke neeche aur desktop par bhi sahi jagah.
-        // 'z-[9999]' -> Yeh ensure karega ki toast hamesha sabse upar dikhe.
-        <div className="fixed top-24 sm:top-20 right-0 sm:right-4 z-[9999] w-full max-w-sm px-4 sm:px-0">
-            <div className="space-y-2">
-                {toasts.map((toast) => (
-                    <Toast
-                        key={toast.id}
-                        message={toast.message}
-                        type={toast.type}
-                        onClose={() => removeToast(toast.id)}
-                    />
-                ))}
-            </div>
-        </div>
-    );
+export const ToastContainer: React.FC<ToastContainerProps> = ({ setAddToast }) => {
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (message: string, type: ToastMessage["type"]) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => removeToast(id), 4000);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  useEffect(() => {
+    setAddToast(addToast);
+  }, [setAddToast]);
+
+  return (
+    <div className="fixed top-5 right-5 flex flex-col gap-2 z-[9999]">
+      {toasts.map((toast) => (
+        <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />
+      ))}
+    </div>
+  );
 };

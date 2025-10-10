@@ -1,10 +1,9 @@
-// backend/routes/userRoutes.js - UPDATED
+// backend/routes/userRoutes.js - FINAL AND COMPLETE
 
 import express from 'express';
 import { getDb } from '../db.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { ObjectId } from 'mongodb';
-//  FIX 1: Naye email function ko import karein
 import { sendOrderConfirmationEmail } from '../utils/sendOrderConfirmationEmail.js';
 
 const router = express.Router();
@@ -18,6 +17,7 @@ router.get('/cart', protect, (req, res) => {
         res.status(500).json({ message: 'Error fetching cart', error: error.message });
     }
 });
+
 router.post('/cart', protect, async (req, res) => {
     const productId = Number(req.body.productId);
     const quantity = Number(req.body.quantity) || 1;
@@ -38,6 +38,7 @@ router.post('/cart', protect, async (req, res) => {
         res.status(500).json({ message: 'Error adding to cart', error: error.message });
     }
 });
+
 router.delete('/cart/:productId', protect, async (req, res) => {
     const productId = Number(req.params.productId);
     try {
@@ -50,6 +51,7 @@ router.delete('/cart/:productId', protect, async (req, res) => {
         res.status(500).json({ message: 'Error removing from cart', error: error.message });
     }
 });
+
 router.put('/cart', protect, async (req, res) => {
     const { productId, quantity } = req.body;
     if (typeof productId !== 'number' || typeof quantity !== 'number' || quantity <= 0) {
@@ -85,9 +87,10 @@ router.get('/wishlist', protect, async (req, res) => {
     }
 });
 
-// ✅ FIX 2: '/orders' route ko update kiya gaya hai
+// ✅ NOTE: This route is now primarily for "Cash on Delivery" or manual order creation.
+// Online payment orders are created via /api/payment/verify
 router.post('/orders', protect, async (req, res) => {
-    const { cart } = req.body;
+    const { cart, shippingAddress } = req.body;
     try {
         const db = getDb();
         const productIds = cart.map(item => item.id);
@@ -105,25 +108,27 @@ router.post('/orders', protect, async (req, res) => {
         const newOrder = {
             userId: new ObjectId(req.user._id),
             userName: req.user.name,
+            userEmail: req.user.email,
+            userPhone: req.user.phone,
+            shippingAddress: shippingAddress,
             date: new Date().toISOString(),
             items: cart,
             totalAmount: totalAmount,
-            status: 'Pending',
+            status: 'Pending', // For COD, 'Pending' is the correct initial status
+            paymentDetails: {
+                method: 'Cash on Delivery'
+            }
         };
 
         const result = await db.collection('orders').insertOne(newOrder);
-        // Poora order object lein, jismein MongoDB se mili _id bhi ho
         const savedOrder = { ...newOrder, _id: result.insertedId };
         
         await db.collection('users').updateOne({ _id: new ObjectId(req.user._id) }, { $set: { cart: [] } });
 
-        // Order save hone ke baad, email bhejein
         try {
             await sendOrderConfirmationEmail(req.user.email, req.user.name, savedOrder);
         } catch (emailError) {
-            // Agar email fail ho, toh bas console mein error log karein,
-            // process ko rokein nahi. Customer ko order confirmation milna chahiye.
-            console.error("Failed to send order confirmation email:", emailError);
+            console.error("Failed to send COD order confirmation email:", emailError);
         }
 
         res.status(201).json(savedOrder);
@@ -142,18 +147,14 @@ router.get('/orders', protect, async (req, res) => {
     }
 });
 
-// GET USER PROFILE
 router.get('/profile', protect, (req, res) => {
     res.json(req.user);
 });
 
-// ✅ FIX: REWRITTEN THIS ROUTE TO BE MORE EFFICIENT AND PREVENT HANGING
 router.put('/profile', protect, async (req, res) => {
     try {
         const db = getDb();
         const userId = new ObjectId(req.user._id);
-
-        // Prepare the fields to be updated from the request body
         const updatedFields = {};
         if (req.body.name) updatedFields.name = req.body.name;
         if (req.body.phone) updatedFields.phone = req.body.phone;
@@ -161,18 +162,17 @@ router.put('/profile', protect, async (req, res) => {
         if (req.body.loyaltyPoints !== undefined) updatedFields.loyaltyPoints = req.body.loyaltyPoints;
         if (req.body.stockNotifications) updatedFields.stockNotifications = req.body.stockNotifications;
 
-        // Use findOneAndUpdate to update the user and get the new document in a single atomic operation
         const result = await db.collection('users').findOneAndUpdate(
             { _id: userId },
             { $set: updatedFields },
             { 
-                returnDocument: 'after', // This option returns the document *after* the update
-                projection: { password: 0 } // We don't want to send the password back
+                returnDocument: 'after',
+                projection: { password: 0 }
             }
         );
         
         if (result) {
-            res.json(result); // Send the updated user back
+            res.json(result);
         } else {
             res.status(404).json({ message: 'User not found' });
         }

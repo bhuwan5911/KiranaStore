@@ -1,4 +1,4 @@
-// frontend/src/context/AppContext.tsx - FINAL AND COMPLETE
+// frontend/src/context/AppContext.tsx - FINAL VERSION
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { CartItem, Product, User, ToastMessage, Review, Order, Category } from '../types';
@@ -65,7 +65,6 @@ interface AppContextType {
   editReview: (productId: number, reviewId: any, newRating: number, newComment: string) => Promise<Review | null>;
   updateUserProfile: (profileData: Partial<User>) => Promise<boolean>;
   addProduct: (product: Omit<Product, 'id' | 'rating' | 'reviews' | '_id'>) => Promise<void>;
-  // ✅ FIX 1: Interface ko FormData accept karne ke liye update karein
   addProductsBulk: (formData: FormData) => Promise<{ success: boolean; message: string }>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (productId: number) => Promise<void>;
@@ -318,17 +317,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!res.ok) { addToast('Could not load reviews.', 'error'); return []; }
         return await res.json();
     } catch (error) {
-       console.error("Network error fetching reviews:", error);
-       addToast("Network error fetching reviews.", "error");
-       setIsOffline(true);
-       return [];
+        console.error("Network error fetching reviews:", error);
+        addToast("Network error fetching reviews.", "error");
+        setIsOffline(true);
+        return [];
     }
   }, [addToast]);
   
   const getProductById = (id: number) => products.find(p => p.id === id);
 
   const cartTotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  const deliveryCharge = cartTotal > 0 && cartTotal < 500 ? 40 : 0;
+  
+  // ✅ FIX: Delivery charge ko hamesha 0 kar diya gaya hai
+  const deliveryCharge = 0;
+  
   const discount = cartTotal > 1000 ? 50 : 0;
   const finalTotal = cartTotal + deliveryCharge - discount;
 
@@ -381,14 +383,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         });
         const newProduct = await res.json();
         if (!res.ok) throw new Error(newProduct.message);
-        setProducts(prev => [...prev, newProduct]);
-        addToast('Product added successfully!', 'success');
+        await fetchProducts();
+        addToast('✅ Product added successfully!', 'success');
     } catch (e: any) {
-        addToast(e.message || "Failed to add product.", 'error');
+        console.error('Add product error:', e);
+        addToast(`❌ ${e.message || "Failed to add product."}`, 'error');
     }
   };
   
-  // ✅ FIX 2: addProductsBulk function ko FormData handle karne ke liye update karein
   const addProductsBulk = async (formData: FormData): Promise<{ success: boolean; message: string }> => {
     try {
         const token = localStorage.getItem('token');
@@ -405,13 +407,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
-        
         await fetchProducts();
         
-        return { success: true, message: data.message };
+        return { success: true, message: data.message || `Successfully uploaded ${data.count || 0} products!` };
     } catch (e: any) {
-        const errorMessage = e.message || "Failed to bulk add products.";
-        return { success: false, message: errorMessage };
+        console.error('Bulk upload error:', e);
+        return { success: false, message: e.message || "Failed to bulk add products." };
     }
   };
 
