@@ -46,7 +46,7 @@ export const SalesChart: React.FC<SalesChartProps> = ({ data, type }) => {
                             fill="#8884d8"
                             dataKey="sales"
                             nameKey="name"
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            label={({ name, percent }: any) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
                         >
                             {pieData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

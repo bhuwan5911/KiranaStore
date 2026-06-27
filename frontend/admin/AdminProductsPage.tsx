@@ -1,6 +1,6 @@
 import React, { useState, useMemo, ChangeEvent } from 'react';
 import { useAppContext } from "../context/AppContext";
-import { Product } from '../../types';
+import { Product } from '../types';
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Plus, Edit, Trash2, Edit3, UploadCloud, X, Loader2 } from 'lucide-react';
@@ -153,7 +153,7 @@ export const AdminProductsPage: React.FC = () => {
   if (product) {
       // Assuming your image URLs are relative, e.g., /uploads/image.png
       // If they are absolute, you don't need to add the localhost part.
-      setImagePreview(`http://localhost:5000${product.imageUrl}`);
+      setImagePreview(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${product.imageUrl}`);
   }
   setIsModalOpen(true);
  };
@@ -195,7 +195,7 @@ export const AdminProductsPage: React.FC = () => {
 
       try {
           const token = localStorage.getItem('token');
-          const res = await fetch('http://localhost:5000/api/admin/upload', {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/upload`, {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${token}` },
               body: formData,
@@ -332,7 +332,7 @@ export const AdminProductsPage: React.FC = () => {
         </td>
         <td className="p-3">
          <img
-          src={`http://localhost:5000${product.imageUrl}`}
+          src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${product.imageUrl}`}
           alt={product.name}
           className="w-12 h-12 object-cover rounded"
          />

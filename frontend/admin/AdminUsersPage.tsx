@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppContext } from "../context/AppContext";
-import { User } from '../../types'; // User type ko import karna acchi practice hai
+import { User } from '../types'; // User type ko import karna acchi practice hai
 
 export const AdminUsersPage: React.FC = () => {
     const { users } = useAppContext();

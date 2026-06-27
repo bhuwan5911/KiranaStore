@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppContext } from "../context/AppContext";
-import { Order } from '../../types';
+import { Order } from '../types';
 
 export const AdminOrdersPage: React.FC = () => {
     const { orders, updateOrderStatus } = useAppContext();

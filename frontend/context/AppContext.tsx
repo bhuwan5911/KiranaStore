@@ -3,7 +3,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { CartItem, Product, User, ToastMessage, Review, Order, Category } from '../types';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api';
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token');
@@ -60,7 +60,7 @@ interface AppContextType {
   addRecentlyViewed: (product: Product) => void;
   getProductById: (id: number) => Product | undefined;
   fetchReviewsForProduct: (productId: number) => Promise<Review[]>;
-  addReview: (productId: number, review: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id' | '_id'>) => Promise<Review | null>;
+  addReview: (productId: number, review: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id' | 'author' | '_id'>) => Promise<Review | null>;
   deleteReview: (productId: number, reviewId: any) => Promise<boolean>;
   editReview: (productId: number, reviewId: any, newRating: number, newComment: string) => Promise<Review | null>;
   updateUserProfile: (profileData: Partial<User>) => Promise<boolean>;
@@ -368,9 +368,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }
 
-  const addReview = async (productId: number, reviewData: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id' | '_id'>): Promise<Review | null> => { return null; };
-  const deleteReview = async (productId: number, reviewId: any) => { return false; };
-  const editReview = async (productId: number, reviewId: any, newRating: number, newComment: string): Promise<Review | null> => { return null; };
+  const addReview = async (
+    productId: number,
+    reviewData: Omit<Review, 'id' | 'date' | 'user_id' | 'product_id' | 'author' | '_id'>
+  ): Promise<Review | null> => {
+    try {
+      const res = await fetchWithAuth(`${API_URL}/products/${productId}/reviews`, {
+        method: 'POST',
+        body: JSON.stringify(reviewData)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to submit review');
+      addToast('Review submitted successfully!', 'success');
+      return data;
+    } catch (e: any) {
+      addToast(e.message || 'Could not submit review.', 'error');
+      return null;
+    }
+  };
+
+  const deleteReview = async (productId: number, reviewId: any): Promise<boolean> => {
+    try {
+      const res = await fetchWithAuth(`${API_URL}/products/${productId}/reviews/${reviewId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to delete review');
+      addToast('Review deleted.', 'info');
+      return true;
+    } catch (e: any) {
+      addToast(e.message || 'Could not delete review.', 'error');
+      return false;
+    }
+  };
+
+  const editReview = async (
+    productId: number,
+    reviewId: any,
+    newRating: number,
+    newComment: string
+  ): Promise<Review | null> => {
+    try {
+      const res = await fetchWithAuth(`${API_URL}/products/${productId}/reviews/${reviewId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ rating: newRating, comment: newComment })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to update review');
+      addToast('Review updated successfully!', 'success');
+      return data;
+    } catch (e: any) {
+      addToast(e.message || 'Could not update review.', 'error');
+      return null;
+    }
+  };
   const redeemPoints = async (pointsToRedeem: number) => { /* ... */ };
   const subscribeToStock = async (productId: number) => { /* ... */ };
   const isSubscribedToStock = (productId: number) => user?.stockNotifications?.includes(productId) || false;

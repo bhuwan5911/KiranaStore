@@ -4,7 +4,6 @@ import { useAppContext } from '../context/AppContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Loader } from 'lucide-react';
-import ShophubLogo from '/favicon.svg';
 
 declare global {
     interface Window {
@@ -41,7 +40,7 @@ export const CheckoutPage: React.FC = () => {
 
     try {
         const token = localStorage.getItem('token');
-        const orderRes = await fetch('http://localhost:5000/api/payment/orders', {
+        const orderRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payment/orders`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -70,7 +69,7 @@ export const CheckoutPage: React.FC = () => {
                 const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = response;
 
                 // --- Payment ko backend par verify karein (Backend hi ab order create karega) ---
-                const verifyRes = await fetch('http://localhost:5000/api/payment/verify', {
+                const verifyRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payment/verify`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',

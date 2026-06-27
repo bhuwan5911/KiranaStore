@@ -17,6 +17,7 @@ export interface CartItem extends Product {
 
 export interface Order {
   id: number; // Changed from string
+  _id?: string;
   userId: string; 
   userName:string;
   date: string;
@@ -28,6 +29,7 @@ export interface Order {
 
 export interface User {
   id: string; // Changed from number to string for Supabase UUID
+  _id?: string;
   name: string;
   email: string;
   address: string;
@@ -45,6 +47,7 @@ export interface ToastMessage {
 
 export interface Review {
     id: number;
+    _id?: string;
     product_id: number;
     user_id: string;
     author: string;

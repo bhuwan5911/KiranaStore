@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
+  size?: 'sm' | 'md' | 'lg' | 'icon';
   children: React.ReactNode;
 }
 
@@ -15,12 +15,14 @@ export const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', s
     secondary: 'bg-primary text-white hover:bg-primary-dark focus:ring-primary',
     danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-500',
     ghost: 'bg-transparent text-primary hover:bg-primary/10 focus:ring-primary shadow-none',
+    outline: 'border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-gray-400 shadow-none',
   };
 
   const sizeClasses = {
     sm: 'py-2 px-5 text-sm',
     md: 'py-3 px-6 text-base',
     lg: 'py-4 px-8 text-lg',
+    icon: 'p-2',
   };
 
   return (
